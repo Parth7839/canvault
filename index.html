@@ -144,6 +144,19 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
 .flash.go{animation:fl .25s}
 @keyframes fl{from{opacity:.8}to{opacity:0}}
+.mini.cat img{object-fit:contain;background:#fff;border-radius:8px}
+.mini.cat .sh,.mini.cat .rim{display:none}
+.flat{display:block;max-width:90%;object-fit:contain;background:#fff;border-radius:10px;filter:drop-shadow(0 10px 14px #0006);animation:sway2 5s ease-in-out infinite}
+@keyframes sway2{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg) translateY(-6px)}}
+#catalog{position:fixed;inset:0;background:var(--bg);z-index:55;overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));display:none}
+#catalog.open{display:block}
+.chead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.cgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 12px;margin-top:10px}
+.cc b{display:block;font-size:14px;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cc>span{color:var(--mute);font-size:12px;display:block;margin-bottom:6px;min-height:16px}
+.cimg{aspect-ratio:3/4;background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:34px}
+.cimg img{width:100%;height:100%;object-fit:contain}
+.cc .row button{padding:8px 4px;font-size:13px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -163,12 +176,14 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 </div>
 <div class="filters" id="filters"></div>
 <div class="grid" id="list"></div>
+<button class="link" id="catV">Add from catalogue</button>
 <button class="link" id="manual" style="margin-top:14px">Add without a photo</button>
 <button class="link" id="gal">Upload from gallery</button>
 </div>
 
 <div class="view" id="v-wish">
 <p class="note">Cans you want to find. Mark them as owned when you get them.</p>
+<button class="outline" id="catW" style="width:100%;margin-bottom:12px">Browse the can catalogue</button>
 <div class="grid" id="wlist"></div>
 <button class="link" id="wadd" style="margin-top:14px">Add to wishlist</button>
 </div>
@@ -178,6 +193,9 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 <div class="view" id="v-more">
 <h3>Appearance</h3>
 <div class="seg" id="seg"><button data-th="auto">Auto</button><button data-th="light">Light</button><button data-th="dark">Dark</button></div>
+<h3>Can display</h3>
+<div class="seg" id="seg2" style="grid-template-columns:1fr 1fr"><button data-ph="0">Can art</button><button data-ph="1">My photo</button></div>
+<p class="note">Catalogue photos are used when a can is found in the catalogue, otherwise a rendered can. Photos: Open Food Facts, CC BY-SA.</p>
 <h3>Backup</h3>
 <p class="note">Your cans live on this phone. Export a backup file now and then.</p>
 <div class="row"><button class="outline" id="exp">Export</button><button class="outline" id="imp">Import</button></div>
@@ -191,6 +209,9 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 <li>Tap any can to edit it, set a quantity, star it or move it to your wishlist.</li>
 <li>Check Stats to see what your vault is worth.</li>
 </ol>
+<h3>AI scanner</h3>
+<div class="row"><button class="outline" id="testScan">Test scanner</button><button class="outline" id="testCat">Test catalogue</button></div>
+<p class="note" id="scanTest"></p>
 <h3>Data</h3>
 <button class="outline danger" id="wipe" style="width:100%">Delete all data</button>
 <p class="note" style="margin-top:14px">Can Vault v3</p>
@@ -224,6 +245,11 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 <button class="primary" id="rvOk" style="margin-top:14px">Continue</button>
 <button class="link" id="rvEdit">Edit details</button>
 </div></div>
+<div id="catalog"><div class="chead"><h1>Catalogue</h1><button class="outline" id="cclose">Done</button></div>
+<input id="cq" type="search" placeholder="Search Monster cans" aria-label="Search the catalogue">
+<p class="note" id="cmsg"></p><div class="cgrid" id="cgrid"></div>
+<button class="outline" id="cmore" style="width:100%;display:none;margin:14px 0">Load more</button>
+<p class="note">Catalogue data and photos come from Open Food Facts (data ODbL, photos CC BY-SA). It covers cans sold in shops, so rare collectibles may be missing.</p></div>
 <div id="sheet"><div class="panel" id="panel"></div></div>
 <div class="toast" id="toast"></div>
 <script>
@@ -247,27 +273,104 @@ function toast(t,act,fn){const e=$("toast");e.innerHTML="";const s=document.crea
 function drawTo(img,max,q){const s=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return c.toDataURL("image/jpeg",q)}
 function shrink(file){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const o={scan:drawTo(img,1280,.85),thumb:drawTo(img,480,.7)};URL.revokeObjectURL(u);res(o)};img.onerror=rej;img.src=u})}
 
-const queue=[];let running=0;
+const SCAN=new Map();const queue=[];let running=0;
 function enqueue(fn){queue.push(fn);pump()}
 function pump(){while(running<2&&queue.length){running++;queue.shift()().catch(()=>{}).finally(()=>{running--;pump()})}}
-async function callScan(image){
- const r=await fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image})});
- const j=await r.json();if(!r.ok)throw new Error(j.error||"Scan failed");return j;
+async function callScan(p){
+ const r=await fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(typeof p==="string"?{image:p}:p)});
+ const t=await r.text();let j;
+ try{j=JSON.parse(t)}catch(e){throw new Error("Scanner not found (HTTP "+r.status+"). Check that api/scan.js is in your GitHub repo.")}
+ if(!r.ok)throw new Error(j.error||"Scan failed");return j;
 }
 async function scanOne(item,image){
  try{
-  let j;try{j=await callScan(image)}catch(e){await new Promise(r=>setTimeout(r,5000));j=await callScan(image)}
+  let j;for(let t=0;t<3;t++){try{j=await callScan(image);break}catch(e){if(t===2||/not found|not set|not valid/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,3000*(t+1)))}}
   item.name=j.name||"Unknown can";item.line=j.line||"";item.edition=j.edition||"";
   item.rarity=RAR.includes(j.rarity)?j.rarity:"Common";item.price=Math.max(0,+j.price||0);
   item.notes=j.notes||"";item.conf=Math.round(+j.confidence||0);
- }catch(e){item.name="Unknown can";item.notes="Auto-scan failed: "+String(e.message||e).slice(0,120);item.conf=0}
+ }catch(e){item.name="Unknown can";item.notes="Auto-scan failed: "+String(e.message||e).slice(0,160);item.conf=0}
  item.scanning=false;
+}
+const CAT=new Map();
+const okProd=p=>p&&p.product_name&&/monster/i.test(p.brands||"")&&!/munch|chips|snack|crisps|candy/i.test((p.brands||"")+" "+p.product_name);
+async function offFetch(q,page,ms){
+ const u="https://world.openfoodfacts.org/cgi/search.pl?action=process&json=1&search_simple=1&page_size=24&page="+page+"&search_terms="+encodeURIComponent(q)+"&tagtype_0=brands&tag_contains_0=contains&tag_0=monster&fields=code,product_name,brands,quantity,image_front_url,image_front_small_url";
+ const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms||9000);
+ try{const r=await fetch(u,{signal:ac.signal});if(!r.ok)throw new Error("HTTP "+r.status);const j=await r.json();const raw=j.products||[];return{items:raw.filter(okProd),raw:raw.length}}
+ finally{clearTimeout(t)}
+}
+async function matchCat(item){
+ try{
+  const toks=x=>String(x).toLowerCase().replace(/monster|energy|drink|[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>1);
+  const want=toks(item.name+" "+item.line);if(!want.length)return;
+  const {items}=await offFetch(want.slice(0,4).join(" "),1,6000);
+  let best=null,bs=0;
+  items.forEach(p=>{const have=toks(p.product_name);if(!have.length||!(p.image_front_url||p.image_front_small_url))return;
+   const hit=want.filter(w=>have.includes(w)).length,sc=hit/Math.max(want.length,have.length);if(sc>bs){bs=sc;best=p}});
+  if(best&&bs>=0.6){item.catImg=best.image_front_url||best.image_front_small_url;item.catCode=best.code;item.catName=best.product_name}
+ }catch(e){}
+}
+async function estimateText(item,text){
+ try{let j;for(let t=0;t<3;t++){try{j=await callScan({text});break}catch(e){if(t===2||/not found|not set|not valid/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,3000*(t+1)))}}
+  item.rarity=RAR.includes(j.rarity)?j.rarity:"Common";item.price=Math.max(0,+j.price||0);item.notes=j.notes||"";item.line=item.line||j.line||"";item.conf=Math.round(+j.confidence||0);
+ }catch(e){item.notes="Couldn't estimate rarity and price. Set them yourself."}
+ item.scanning=false;
+}
+function addFromCat(p,status){
+ if(cans.some(c=>c.catCode===p.code&&c.status===status)){toast("Already in your "+(status==="Wishlist"?"wishlist":"vault"));return}
+ const nm=/monster/i.test(p.product_name)?p.product_name:"Monster "+p.product_name;
+ const lm=nm.match(/(Ultra|Juice|Rehab|Java|Reserve|Hydro|Zero|Original|Mango Loco|Pipeline|Khaotic|Assault|Lo-Carb|Punch)/i);
+ const item={id:Date.now()+""+Math.random().toString(36).slice(2,6),name:nm,line:lm?lm[1][0].toUpperCase()+lm[1].slice(1):"",edition:p.quantity||"",rarity:"Common",price:0,status,qty:1,fav:false,date:"",notes:"",catImg:p.image_front_url||p.image_front_small_url||"",catCode:p.code,added:Date.now(),scanning:true,xpDone:true};
+ cans.push(item);save();render();toast(status==="Wishlist"?"Added to wishlist":"Added to vault");
+ enqueue(async()=>{await estimateText(item,nm+" "+(p.quantity||"")+" (barcode "+p.code+")");save();render()});
+}
+let catPage=1,catQ="",catBusy=false,catT=null,catInit=false;
+const catCard=p=>{const im=p.image_front_small_url||p.image_front_url;return `<div class="cc"><div class="cimg">${im?`<img src="${esc(im)}" alt="" loading="lazy">`:"🥫"}</div><b>${esc(p.product_name)}</b><span>${esc(p.quantity||"")}</span><div class="row"><button class="outline" data-ca="${esc(p.code)}">+ Vault</button><button class="outline" data-cw="${esc(p.code)}">♡ Wish</button></div></div>`};
+async function loadCat(reset){
+ if(catBusy)return;if(reset){catPage=1;$("cgrid").innerHTML=""}
+ catBusy=true;$("cmsg").textContent="Loading…";$("cmore").style.display="none";
+ try{const {items,raw}=await offFetch(catQ,catPage);items.forEach(p=>CAT.set(p.code,p));
+  $("cgrid").insertAdjacentHTML("beforeend",items.map(catCard).join(""));catPage++;
+  $("cmsg").textContent=$("cgrid").children.length?"":"No cans found. Try another name.";
+  $("cmore").style.display=raw>=24?"block":"none";
+ }catch(e){$("cmsg").innerHTML='Couldn\'t reach the catalogue. <button class="link" id="cretry" style="width:auto;display:inline;padding:0">Try again</button>'}
+ catBusy=false;
+}
+function openCatalog(){$("catalog").classList.add("open");if(!catInit){catInit=true;loadCat(true)}}
+$("catW").onclick=openCatalog;$("catV").onclick=openCatalog;$("cclose").onclick=()=>$("catalog").classList.remove("open");
+$("cq").oninput=e=>{clearTimeout(catT);catT=setTimeout(()=>{catQ=e.target.value.trim();loadCat(true)},600)};
+$("cmore").onclick=()=>loadCat(false);
+$("catalog").addEventListener("click",e=>{
+ const a=e.target.closest("[data-ca]"),w=e.target.closest("[data-cw]");
+ if(a&&CAT.get(a.dataset.ca))addFromCat(CAT.get(a.dataset.ca),"Owned");
+ if(w&&CAT.get(w.dataset.cw))addFromCat(CAT.get(w.dataset.cw),"Wishlist");
+ if(e.target.id==="cretry")loadCat(true);
+});
+const useCat=c=>!!c.catImg&&!S.photos;
+function imgTag(c){
+ if(S.photos&&c.img)return `<img src="${c.img}" alt="${esc(c.name)}">`;
+ if(c.catImg)return `<img src="${esc(c.catImg)}" alt="${esc(c.name)}" data-f="${esc(artURL(c))}" onerror="this.onerror=null;this.src=this.dataset.f;this.parentNode.classList.remove('cat')">`;
+ return `<img src="${artURL(c)}" alt="${esc(c.name)}">`;
+}
+function stageHTML(c,url,sc){
+ if(useCat(c)){const h=Math.round(210*sc);return `<div class="cw" style="height:${h+10}px"><img class="flat" src="${esc(c.catImg)}" alt="" style="height:${h}px" data-f="${esc(url)}" onerror="this.onerror=null;this.src=this.dataset.f"></div>`}
+ return can3d(url,sc);
+}
+async function rescan(id){
+ const c=cans.find(x=>x.id===id);if(!c)return;const bk={...c};c.scanning=true;render();toast("Scanning…");
+ await scanOne(c,SCAN.get(id)||c.img);if(c.conf>0)await matchCat(c);
+ if(!(c.conf>0)){Object.assign(c,{name:bk.name,line:bk.line,edition:bk.edition,rarity:bk.rarity,price:bk.price,conf:bk.conf});c.notes="Auto-scan failed: "+(c.notes||"").replace("Auto-scan failed: ","")}
+ else delete c.colors,await ensureColors(c);
+ if(c.conf>0&&!c.xpDone&&c.status!=="Wishlist"){const r=grant(c);if(r){REV.set(c.id,r);save();render();queueReveal(c);return}}
+ save();render();toast(c.conf>0?`${c.name} · ${c.rarity} · ${money(c.price)}`:(c.notes||"Couldn't scan that one").slice(0,140));
 }
 async function addPhoto(f){
  let sh;try{sh=await shrink(f)}catch(e){toast("Couldn't read that image");return}
- const item={id:Date.now()+""+Math.random().toString(36).slice(2,6),name:"Scanning…",line:"",edition:"",rarity:"Common",price:0,status:"Owned",qty:1,fav:false,date:"",notes:"",img:sh.thumb,added:Date.now(),scanning:true};
+ const colors=await extractColors(sh.thumb);
+ const item={colors,id:Date.now()+""+Math.random().toString(36).slice(2,6),name:"Scanning…",line:"",edition:"",rarity:"Common",price:0,status:"Owned",qty:1,fav:false,date:"",notes:"",img:sh.thumb,added:Date.now(),scanning:true};
  cans.push(item);render();
- enqueue(async()=>{await scanOne(item,sh.scan);if(item.conf>0){const r=grant(item);if(r)REV.set(item.id,r)}save();render();showResult(item)});
+ SCAN.set(item.id,sh.scan);
+ enqueue(async()=>{await scanOne(item,sh.scan);if(item.conf>0)await matchCat(item);if(item.conf>0){const r=grant(item);if(r)REV.set(item.id,r)}save();render();showResult(item)});
 }
 function showResult(item){
  const r=REV.get(item.id);
@@ -348,16 +451,37 @@ function grant(item){
 }
 function confetti(){if(calm)return;const cs=["var(--legendary)","var(--epic)","var(--rare)","var(--uncommon)","#fff"];
  for(let i=0;i<36;i++){const p=document.createElement("i");p.className="cf";p.style.cssText=`background:${cs[i%5]};--dx:${(Math.random()-.5)*340}px;--dy:${-Math.random()*360-60}px;--r:${Math.random()*720}deg`;document.body.appendChild(p);setTimeout(()=>p.remove(),1300)}}
-async function wrapOf(c){
- const k=c.id+"|"+(c.img?c.img.length:0)+"|"+c.name+"|"+c.rarity;if(WRAP.has(k))return WRAP.get(k);
- const W=280,H=420,cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
- const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,RHEX[c.rarity]||"#555");g.addColorStop(1,"#111");x.fillStyle=g;x.fillRect(0,0,W,H);
- let img=null;if(c.img)img=await new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=c.img});
- if(img){const s=Math.max(W/img.width,H/img.height),w=img.width*s,h=img.height*s;x.drawImage(img,(W-w)/2,(H-h)/2,w,h)}
- else{x.fillStyle="#fff";x.textAlign="center";x.font="bold 34px system-ui,sans-serif";
-  const words=c.name.split(" ");let line="",y=190;words.forEach(w=>{if((line+w).length>11){x.fillText(line.trim(),W/2,y);y+=42;line=""}line+=w+" "});x.fillText(line.trim(),W/2,y)}
- const u=cv.toDataURL("image/jpeg",.85);WRAP.set(k,u);return u;
+const hexLum=h=>{const n=parseInt(h.slice(1),16);return(0.299*(n>>16)+0.587*((n>>8)&255)+0.114*(n&255))/255};
+const toHex=(r,g,b)=>"#"+[r,g,b].map(v=>Math.round(v).toString(16).padStart(2,"0")).join("");
+function extractColors(url){return new Promise(res=>{const i=new Image();i.onerror=()=>res(null);i.onload=()=>{try{
+ const z=32,cv=document.createElement("canvas");cv.width=cv.height=z;const x=cv.getContext("2d");
+ x.drawImage(i,i.width*.25,i.height*.15,i.width*.5,i.height*.7,0,0,z,z);
+ const d=x.getImageData(0,0,z,z).data,m={};
+ for(let p=0;p<d.length;p+=4){const k=(d[p]>>5)+","+(d[p+1]>>5)+","+(d[p+2]>>5),o=m[k]||(m[k]={n:0,r:0,g:0,b:0});o.n++;o.r+=d[p];o.g+=d[p+1];o.b+=d[p+2]}
+ const a=Object.values(m).map(o=>({n:o.n,r:o.r/o.n,g:o.g/o.n,b:o.b/o.n}));
+ const sat=o=>{const mx=Math.max(o.r,o.g,o.b),mn=Math.min(o.r,o.g,o.b);return mx?(mx-mn)/mx:0};
+ a.sort((p,q)=>q.n-p.n);const body=a[0];
+ const dist=(p,q)=>Math.abs(p.r-q.r)+Math.abs(p.g-q.g)+Math.abs(p.b-q.b);
+ const cand=a.filter(o=>sat(o)>.35&&dist(o,body)>110).sort((p,q)=>q.n*sat(q)-p.n*sat(p)*0-p.n*sat(p));
+ const acc=cand[0]||(hexLum(toHex(body.r,body.g,body.b))>.5?{r:30,g:30,b:30}:{r:230,g:230,b:230});
+ res({body:toHex(body.r,body.g,body.b),accent:toHex(acc.r,acc.g,acc.b)})
+ }catch(e){res(null)}};i.src=url})}
+async function ensureColors(c){if(c.colors||!c.img)return;const k=await extractColors(c.img);if(k){c.colors=k;save()}}
+function artSVG(c){
+ const k=c.colors||{body:"#1c231c",accent:RHEX[c.rarity]||"#8be000"};
+ const tc=hexLum(k.body)>.55?"#111":"#fff",ac=hexLum(k.accent)>.55?"#111":"#fff";
+ const word=((c.line||(c.name||"").split(" ")[0]||"CAN")+"").toUpperCase().slice(0,12);
+ const fs=word.length>8?46:word.length>5?58:74;
+ const sub=esc((c.name||"").toUpperCase().slice(0,20)),ed=esc((c.edition||c.rarity||"").toUpperCase().slice(0,22));
+ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 420" width="280" height="420"><defs><linearGradient id="v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".35"/><stop offset=".25" stop-color="#000" stop-opacity="0"/><stop offset=".8" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient></defs>
+<rect width="280" height="420" fill="${k.body}"/><polygon points="0,120 280,70 280,170 0,225" fill="${k.accent}"/><polygon points="0,240 280,186 280,198 0,252" fill="${k.accent}" opacity=".55"/>
+<text x="140" y="${fs>60?285:272}" text-anchor="middle" font-family="Arial Black,Impact,system-ui,sans-serif" font-weight="900" font-size="${fs}" fill="${tc}">${esc(word)}</text>
+<text x="140" y="332" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="700" font-size="19" fill="${tc}" opacity=".9">${sub}</text>
+<text x="140" y="372" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" letter-spacing="2" fill="${tc}" opacity=".6">${ed}</text>
+<rect width="280" height="420" fill="url(#v)"/></svg>`;
 }
+const artURL=c=>"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(artSVG(c)).replace(/'/g,"%27");
+async function wrapOf(c){await ensureColors(c);return artURL(c)}
 function can3d(url,sc=1){
  const N=24,W=140,H=210,R=W/(140*Math.PI/180),sw=W/N;let sl="";
  for(let i=0;i<N;i++){const a=-70+(i+.5)*140/N;sl+=`<i class="sl" style="width:${(sw+.8).toFixed(2)}px;margin-left:${(-sw/2).toFixed(2)}px;background-position:${(-i*sw).toFixed(2)}px 0;transform:rotateY(${a.toFixed(2)}deg) translateZ(${R.toFixed(2)}px)"></i>`}
@@ -371,7 +495,7 @@ async function runReveal(){
  revOpen=true;revId=id;
  const url=await wrapOf(c);
  $("reveal").style.setProperty("--rc",COL[c.rarity]);
- const st=$("rvStage");st.style.animation="none";void st.offsetWidth;st.style.animation="";st.innerHTML=can3d(url,1.2);
+ const st=$("rvStage");st.style.animation="none";void st.offsetWidth;st.style.animation="";st.innerHTML=stageHTML(c,url,1.2);
  $("rvName").textContent=c.name;
  $("rvMeta").innerHTML=`<span class="pill" style="background:${COL[c.rarity]}">${c.rarity}</span> &nbsp;${money(c.price)}${c.line?" · "+esc(c.line):""}`;
  const el=$("rvXp");
@@ -400,7 +524,7 @@ function achHTML(){
 function go(t){tab=t;window.scrollTo(0,0);render()}
 function bars(list,fmt){const m=Math.max(1,...list.map(r=>r.v));return list.map(r=>`<div class="bar"><span>${esc(r.l)}</span><div class="track"><div class="fill" style="width:${r.v/m*100}%;background:${r.c||"var(--ink)"}"></div></div><small>${fmt(r.v)}</small></div>`).join("")}
 function cardHTML(c,dup){
- return `<button class="card" data-o="${c.id}"><div class="ph"><div class="mini ${c.rarity}">${c.img?`<img src="${c.img}" alt="${esc(c.name)}">`:'<b class="gen">🥫</b>'}<i class="sh"></i><i class="rim t"></i><i class="rim b"></i></div>${c.fav?'<span class="star">★</span>':""}${qty(c)>1?`<span class="tag">×${qty(c)}</span>`:""}${c.scanning?'<div class="scan">Scanning…</div>':""}</div><div class="info"><b>${esc(c.name)}</b><span><i class="dot" style="background:${COL[c.rarity]}"></i>${c.rarity} · ${money(c.price)}${dup?" · Duplicate?":""}</span></div></button>`;
+ return `<button class="card" data-o="${c.id}"><div class="ph"><div class="mini ${c.rarity}${useCat(c)?" cat":""}">${imgTag(c)}<i class="sh"></i><i class="rim t"></i><i class="rim b"></i></div>${c.fav?'<span class="star">★</span>':""}${qty(c)>1?`<span class="tag">×${qty(c)}</span>`:""}${c.scanning?'<div class="scan">Scanning…</div>':""}</div><div class="info"><b>${esc(c.name)}</b><span><i class="dot" style="background:${COL[c.rarity]}"></i>${c.rarity} · ${money(c.price)}${dup?" · Duplicate?":""}</span></div></button>`;
 }
 function render(){
  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==="v-"+tab));
@@ -434,6 +558,7 @@ function render(){
  <h3>Added per month</h3>${bars(months,n=>n)}`:'<div class="empty"><b>No stats yet</b>Scan a few cans and your numbers show up here.</div>')+achHTML();
  // more
  document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.th===(S.theme||"auto")));
+ document.querySelectorAll("#seg2 button").forEach(b=>b.classList.toggle("on",(b.dataset.ph==="1")===!!S.photos));
  $("lastB").textContent=S.lastBackup?"Last backup: "+new Date(S.lastBackup).toLocaleDateString():"No backup yet.";
 }
 
@@ -442,6 +567,7 @@ document.addEventListener("click",e=>{
  const t=e.target.closest("#tabs [data-t]");if(t){go(t.dataset.t);return}
  const o=e.target.closest("[data-o]");if(o){openSheet(o.dataset.o);return}
  const f=e.target.closest("[data-f]");if(f){filter=f.dataset.f;render();return}
+ const ph=e.target.closest("[data-ph]");if(ph){S.photos=ph.dataset.ph==="1";saveS();render();return}
  const th=e.target.closest("[data-th]");if(th){S.theme=th.dataset.th;saveS();applyTheme();render()}
 });
 $("q").oninput=render;$("sort").onchange=render;
@@ -451,7 +577,7 @@ $("manual").onclick=()=>openSheet(null,"Owned");$("wadd").onclick=()=>openSheet(
 function openSheet(id,st){
  const c=id?cans.find(x=>x.id===id):{name:"",line:"",edition:"",rarity:"Common",price:0,qty:1,fav:false,date:"",status:st||"Owned",notes:""};
  if(!c)return;let fav=!!c.fav;
- $("panel").innerHTML=`${c.img?'<div id="sheetStage" class="stage"></div>':""}
+ $("panel").innerHTML=`<div id="sheetStage" class="stage"></div>${useCat(c)?'<p class="note">Showing the catalogue photo. <button class="link" id="f_nocat" style="width:auto;display:inline;padding:0">Wrong can? Remove it</button></p>':""}
  ${c.conf!=null&&c.img?`<p class="note">Scan confidence ${c.conf}%. Prices are estimates, so check them.</p>`:""}
  <label for="f_name">Name</label><input id="f_name" value="${esc(c.name)}">
  <div class="row"><div><label for="f_line">Line</label><input id="f_line" value="${esc(c.line)}"></div><div><label for="f_ed">Edition</label><input id="f_ed" value="${esc(c.edition)}"></div></div>
@@ -461,12 +587,16 @@ function openSheet(id,st){
  <div><label for="f_d">Date got it</label><input id="f_d" type="date" value="${esc(c.date||"")}"></div></div>
  <label for="f_s">Status</label><select id="f_s"><option${c.status!=="Wishlist"?" selected":""}>Owned</option><option${c.status==="Wishlist"?" selected":""}>Wishlist</option></select>
  <label for="f_n">Notes</label><textarea id="f_n" rows="2">${esc(c.notes)}</textarea>
+ ${c.img&&c.notes&&/Auto-scan failed/.test(c.notes)?'<p class="note" style="color:#d23b3b">The scan failed. Tap Re-scan to try again.</p>':""}
+ ${c.img?'<button class="outline" id="f_rescan" style="width:100%;margin-top:12px">Re-scan with AI</button>':""}
  <button class="primary" id="f_save" style="margin-top:14px">Save</button>
  <div class="row" style="margin-top:8px"><button class="outline" id="f_fav">${fav?"★ Favorite":"☆ Favorite"}</button><button class="outline" id="f_close">Close</button></div>
  ${id?'<button class="link danger" id="f_del">Delete this can</button>':""}`;
  $("sheet").classList.add("open");
- if(c.img)wrapOf(c).then(u=>{const st=$("sheetStage");if(st)st.innerHTML=can3d(u,.8)});
+ wrapOf(c).then(u=>{const st=$("sheetStage");if(st)st.innerHTML=stageHTML(c,u,.8)});
  $("f_close").onclick=closeSheet;
+ if($("f_nocat"))$("f_nocat").onclick=()=>{delete c.catImg;delete c.catCode;delete c.catName;save();closeSheet();render();toast("Catalogue photo removed")};
+ if($("f_rescan"))$("f_rescan").onclick=()=>{if(c.conf>0&&!confirm("Replace these details with a fresh AI scan?"))return;closeSheet();rescan(c.id)};
  $("f_fav").onclick=()=>{fav=!fav;$("f_fav").textContent=fav?"★ Favorite":"☆ Favorite"};
  $("f_save").onclick=()=>{
   const v={name:$("f_name").value.trim()||"Unnamed can",line:$("f_line").value.trim(),edition:$("f_ed").value.trim(),rarity:$("f_r").value,price:Math.max(0,parseFloat($("f_p").value)||0),qty:Math.max(1,parseInt($("f_q").value)||1),date:$("f_d").value,status:$("f_s").value,notes:$("f_n").value.trim(),fav};
@@ -495,6 +625,12 @@ $("impFile").onchange=async e=>{
   const ids=new Set(cans.map(c=>c.id));let n=0;a.forEach(c=>{if(c&&c.id&&!ids.has(c.id)){cans.push(c);n++}});save();render();toast(n+" cans imported")
  }catch(err){toast("That file isn't a Can Vault backup")}
 };
+$("testScan").onclick=async()=>{const n=$("scanTest");n.textContent="Testing…";
+ try{const r=await fetch("/api/scan"),t=await r.text();let j;try{j=JSON.parse(t)}catch(e){n.textContent="Scanner not found (HTTP "+r.status+"). Make sure api/scan.js is in your GitHub repo and Vercel has redeployed.";return}
+  n.textContent=r.ok&&j.ok?"Scanner works ✓ (model: "+j.model+")":"Scanner problem: "+(j.error||"unknown error")}catch(e){n.textContent="Couldn't reach the scanner: "+e.message}};
+$("testCat").onclick=async()=>{const n=$("scanTest");n.textContent="Testing catalogue…";
+ try{const {items,raw}=await offFetch("ultra",1,9000);n.textContent=items.length?`Catalogue works ✓ (${items.length} cans found)`:`Catalogue reachable, but no Monster cans came back (${raw} results). Try again later.`}
+ catch(e){n.textContent="Couldn't reach the catalogue: "+(e.message||e)}};
 $("wipe").onclick=()=>{if(confirm("Delete all cans and settings? Export a backup first. This can't be undone.")){cans=[];S={};save();saveS();if(S.xp==null){S.xp=0;cans.forEach(c=>{if(c.status!=="Wishlist"&&!c.scanning){c.xpDone=true;S.xp+=XPB[c.rarity]||10}});checkAch();save();saveS()}
 applyTheme();render();toast("All data deleted")}};
 
@@ -505,6 +641,7 @@ function welcome(){
  $("sheet").classList.add("open");$("w_go").onclick=()=>{closeSheet();S.seen=1;saveS()};
 }
 applyTheme();render();
+(async()=>{let ch=0;for(const c of cans){if(!c.colors&&c.img){const k=await extractColors(c.img);if(k){c.colors=k;ch=1}}}if(ch){save();render()}})();
 if(!S.seen&&!cans.length)welcome();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
