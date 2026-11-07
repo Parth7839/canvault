@@ -94,8 +94,15 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = {}; } }
     const m = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec((body && body.image) || "");
-    if (!m) return res.status(400).json({ error: "Bad image" });
-    const j = await callGemini(key, [{ text: PROMPT }, { inline_data: { mime_type: m[1], data: m[2] } }], true);
+    let reqParts;
+    if (body && typeof body.text === "string" && body.text.trim()) {
+      reqParts = [{ text: PROMPT + "\n\nThere is no photo. Instead, identify the can from this catalogue entry and fill every field: " + body.text.slice(0, 300) }];
+    } else if (m) {
+      reqParts = [{ text: PROMPT }, { inline_data: { mime_type: m[1], data: m[2] } }];
+    } else {
+      return res.status(400).json({ error: "Bad image" });
+    }
+    const j = await callGemini(key, reqParts, true);
     if (j.promptFeedback && j.promptFeedback.blockReason) {
       return res.status(422).json({ error: "Image was blocked: " + j.promptFeedback.blockReason });
     }
