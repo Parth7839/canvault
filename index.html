@@ -12,25 +12,29 @@
 <meta name="apple-mobile-web-app-title" content="Can Vault">
 <style>
 :root{--bg:#fafaf8;--ink:#161816;--mute:#7b817c;--line:#e6e8e4;--acc:#161816;--acc-ink:#fafaf8;--ph:#eef0ec;
---common:#9aa09b;--uncommon:#3f9a64;--rare:#3b78d8;--epic:#8f55d6;--legendary:#d98a00;color-scheme:light dark;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root{--bg:#0e100e;--ink:#eceeea;--mute:#8a918b;--line:#222622;--acc:#eceeea;--acc-ink:#0e100e;--ph:#181b18;--common:#9aa59c;--uncommon:#46c27d;--rare:#5b9bff;--epic:#b57aff;--legendary:#ffb12e}}
+--common:#9aa09b;--uncommon:#3f9a64;--rare:#3b78d8;--epic:#8f55d6;--legendary:#d98a00;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e100e;--ink:#eceeea;--mute:#8a918b;--line:#222622;--acc:#eceeea;--acc-ink:#0e100e;--ph:#181b18;--common:#9aa59c;--uncommon:#46c27d;--rare:#5b9bff;--epic:#b57aff;--legendary:#ffb12e;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e100e;--ink:#eceeea;--mute:#8a918b;--line:#222622;--acc:#eceeea;--acc-ink:#0e100e;--ph:#181b18;--common:#9aa59c;--uncommon:#46c27d;--rare:#5b9bff;--epic:#b57aff;--legendary:#ffb12e;color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:620px;margin:0 auto;padding:20px 16px 40px}
-header{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 20px}
-h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}
+main{max-width:620px;margin:0 auto;padding:20px 16px calc(100px + env(safe-area-inset-bottom,0px))}
+header{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 16px}
+h1{font-size:22px;margin:0;font-weight:700;letter-spacing:-.01em}
 #sum{color:var(--mute);font-size:14px}
+h3{font-size:14px;color:var(--mute);font-weight:600;margin:22px 0 8px}
 button{font:inherit;border:0;border-radius:12px;padding:13px 16px;cursor:pointer;color:var(--ink);background:none}
-.primary{background:var(--acc);color:var(--acc-ink);font-weight:600;width:100%;padding:16px}
+.primary{background:var(--acc);color:var(--acc-ink);font-weight:600;width:100%;padding:15px}
+.outline{border:1px solid var(--line)}
 .link{color:var(--mute);width:100%;padding:10px;font-size:14px}
 .danger{color:#d23b3b}
 :focus-visible{outline:2px solid var(--rare);outline-offset:2px}
 input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
 label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.tools{display:grid;grid-template-columns:1fr 110px;gap:8px;margin:18px 0 10px}
+.view{display:none}.view.on{display:block}
+.tools{display:grid;grid-template-columns:1fr 104px 64px;gap:8px;margin:0 0 10px}
 .filters{display:flex;gap:4px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px}
 .chip{padding:6px 12px;border-radius:99px;white-space:nowrap;font-size:14px;color:var(--mute)}
 .chip.on{background:var(--ink);color:var(--bg)}
@@ -38,27 +42,87 @@ label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
 .card{text-align:left;padding:0;display:block;width:100%;background:none;border-radius:0}
 .ph{aspect-ratio:3/4;background:var(--ph);position:relative;display:flex;align-items:center;justify-content:center;font-size:36px;border-radius:12px;overflow:hidden}
 .ph img{width:100%;height:100%;object-fit:cover;display:block}
-.wish{position:absolute;right:6px;top:6px;background:#000a;color:#fff;font-size:11px;padding:2px 8px;border-radius:99px}
-.info{padding:8px 2px 0}
+.tag{position:absolute;right:6px;top:6px;background:#000a;color:#fff;font-size:11px;padding:2px 8px;border-radius:99px}
+.star{position:absolute;left:6px;top:4px;color:#ffc933;font-size:18px;text-shadow:0 1px 3px #0008}
+.info{padding:8px 2px 0;min-width:0}
 .info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:15px}
-.info span{color:var(--mute);font-size:13px;display:flex;align-items:center;gap:6px}
+.info span{color:var(--mute);font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .dot{width:8px;height:8px;border-radius:50%;flex:none}
-.empty{color:var(--mute);text-align:center;padding:36px 0;grid-column:1/-1}
-.scan{position:absolute;inset:0;background:#000a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px}
-details{border-top:1px solid var(--line);padding:14px 0}
-summary{cursor:pointer;color:var(--mute);font-size:14px;list-style:none}
-summary::-webkit-details-marker{display:none}
-details[open] summary{margin-bottom:10px}
-.bar{display:grid;grid-template-columns:96px 1fr 72px;gap:8px;align-items:center;font-size:14px;margin:8px 0}
+.grid.list{grid-template-columns:1fr;gap:6px}
+.grid.list .card{display:flex;gap:12px;align-items:center}
+.grid.list .ph{width:56px;aspect-ratio:1;flex:none;font-size:22px}
+.grid.list .info{padding:0}
+.grid.list .tag{display:none}
+.empty{color:var(--mute);text-align:center;padding:40px 8px;grid-column:1/-1}
+.empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px}
+.scan{position:absolute;inset:0;background:#000a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{border:1px solid var(--line);border-radius:14px;padding:12px}
+.tile b{display:block;font-size:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile span{color:var(--mute);font-size:13px}
+.bar{display:grid;grid-template-columns:104px 1fr 70px;gap:8px;align-items:center;font-size:14px;margin:8px 0}
+.bar>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .track{background:var(--line);border-radius:4px;height:6px;overflow:hidden}
 .fill{height:100%;border-radius:4px}
 .bar small{color:var(--mute);text-align:right}
-.note{color:var(--mute);font-size:13px}
-#sheet{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:20}
+.note{color:var(--mute);font-size:13px;margin:6px 0}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{border-radius:0;padding:10px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.tips{padding-left:18px;margin:6px 0;color:var(--mute);font-size:14px}.tips li{margin:6px 0}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));z-index:30}
+nav button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--mute);padding:6px 0;border-radius:10px}
+nav button.on{color:var(--ink);font-weight:600}
+nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav .fab{color:var(--acc-ink)}
+nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:-16px;box-shadow:0 2px 10px #0003}
+.mini{position:relative;width:56%;aspect-ratio:2/3;filter:drop-shadow(0 6px 8px #0003)}
+.mini img,.mini .gen{width:100%;height:100%;display:block;border-radius:5px/8px}
+.mini img{object-fit:cover}
+.mini .gen{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#8be000,#2a4d00);font-size:28px}
+.mini .sh,.can3d .cs{position:absolute;inset:0;border-radius:5px/8px;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.42),rgba(255,255,255,.2) 28%,rgba(255,255,255,0) 52%,rgba(0,0,0,.38))}
+.rim{position:absolute;left:-2%;right:-2%;height:7%;border-radius:50%;background:linear-gradient(90deg,#868b87,#f3f5f3 45%,#868b87);z-index:2}
+.rim.t{top:-3.5%}.rim.b{bottom:-3.5%}
+.mini.Rare{filter:drop-shadow(0 0 8px var(--rare))}
+.mini.Epic{filter:drop-shadow(0 0 10px var(--epic))}
+.mini.Legendary{filter:drop-shadow(0 0 12px var(--legendary))}
+.grid.list .mini{width:50%}
+.cw{display:flex;justify-content:center}
+.can3d{position:relative;width:140px;height:210px;perspective:800px;transform-origin:top center;flex:none}
+.can3d .cyl{position:absolute;inset:0;transform-style:preserve-3d;animation:sway 5s ease-in-out infinite}
+.can3d .sl{position:absolute;top:0;height:100%;left:50%;backface-visibility:hidden;background-image:var(--img);background-size:140px 210px}
+.can3d .rim{left:-4px;right:-4px;height:14px}
+.can3d .rim.t{top:-7px}.can3d .rim.b{bottom:-7px;top:auto}
+.can3d .gnd{position:absolute;left:6%;right:6%;bottom:-24px;height:16px;border-radius:50%;background:radial-gradient(#0007,transparent 70%)}
+@keyframes sway{0%,100%{transform:rotateY(-34deg)}50%{transform:rotateY(34deg)}}
+.stage{margin:4px 0 14px}
+.rk{margin:-4px 0 18px;cursor:pointer}
+.rk div{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-bottom:6px}
+.rk b{color:var(--ink);font-size:14px}
+.xpbar{height:6px;background:var(--line);border-radius:6px;overflow:hidden;margin:8px 0 4px}
+.xpbar i{display:block;height:100%;background:var(--acc);width:0;border-radius:6px;transition:width .9s ease .3s}
+.ach{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.a{border:1px solid var(--line);border-radius:12px;padding:10px;font-size:12px;color:var(--mute);opacity:.5}
+.a b{display:block;color:var(--ink);font-size:14px}
+.a.on{opacity:1;border-color:var(--ink)}
+#reveal{position:fixed;inset:0;z-index:65;display:none;align-items:center;justify-content:center;padding:20px;text-align:center;overflow:auto;background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--rc,#888) 30%,var(--bg)),var(--bg) 68%)}
+#reveal.open{display:flex}
+.rvwrap{width:100%;max-width:340px;margin:auto}
+#rvStage{margin-bottom:34px;animation:drop .6s cubic-bezier(.2,1.3,.4,1)}
+@keyframes drop{from{transform:translateY(-140px) scale(.85);opacity:0}}
+#reveal h2{margin:0 0 6px;font-size:22px}
+.pill{display:inline-block;padding:2px 12px;border-radius:99px;color:#0e100e;font-weight:700;font-size:13px}
+.rvx b{display:block;font-size:34px;letter-spacing:-.02em;margin-top:14px}
+.rvx span{color:var(--mute);font-size:13px}
+.up{margin:12px 0 4px;font-weight:700;font-size:16px}
+.cf{position:fixed;left:50%;top:55%;width:8px;height:12px;z-index:90;pointer-events:none;animation:cf 1.2s ease-out forwards}
+@keyframes cf{to{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
+#sheet{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:50}
 #sheet.open{display:flex}
 .panel{background:var(--bg);width:100%;max-width:620px;max-height:92%;overflow:auto;border-radius:20px 20px 0 0;padding:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
 .panel img{width:100%;max-height:260px;object-fit:contain;border-radius:12px;background:var(--ph)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:14px;z-index:70;display:none;max-width:90%}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 8px 8px 16px;border-radius:99px;font-size:14px;z-index:70;display:none;max-width:92%;align-items:center;gap:8px}
+.toast button{color:var(--bg);text-decoration:underline;padding:4px 10px;font-size:14px}
 #cam{position:fixed;inset:0;background:#000;z-index:40;display:none}
 #cam.open{display:block}
 #vid{width:100%;height:100%;object-fit:cover}
@@ -85,28 +149,61 @@ details[open] summary{margin-bottom:10px}
 </head>
 <body>
 <main>
-<header><h1>Can Vault</h1><span id="sum"></span></header>
+<header><h1 id="title">Vault</h1><span id="sum"></span></header>
 
 <input type="file" id="file" accept="image/*" multiple hidden>
 <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
-<button class="primary" id="scanBtn">Scan a can</button>
-<button class="link" id="gal">Upload from gallery</button>
 
+<div class="view on" id="v-vault">
+<div class="rk" id="rankStrip"></div>
 <div class="tools">
 <input id="q" type="search" placeholder="Search" aria-label="Search cans">
 <select id="sort" aria-label="Sort"><option value="new">Newest</option><option value="price">Price</option><option value="rarity">Rarity</option><option value="name">Name</option></select>
+<button class="outline" id="viewBtn" aria-label="Switch view">List</button>
 </div>
 <div class="filters" id="filters"></div>
 <div class="grid" id="list"></div>
-<button class="link" id="manual" style="margin-top:16px">Add without a photo</button>
+<button class="link" id="manual" style="margin-top:14px">Add without a photo</button>
+<button class="link" id="gal">Upload from gallery</button>
+</div>
 
-<details style="margin-top:20px"><summary>Value by rarity</summary><div id="chart"></div></details>
-<details><summary>Backup</summary>
-<p class="note">Cans are saved on this phone. Export a backup so you never lose them.</p>
-<div class="row"><button style="border:1px solid var(--line)" id="exp">Export</button><button style="border:1px solid var(--line)" id="imp">Import</button></div>
+<div class="view" id="v-wish">
+<p class="note">Cans you want to find. Mark them as owned when you get them.</p>
+<div class="grid" id="wlist"></div>
+<button class="link" id="wadd" style="margin-top:14px">Add to wishlist</button>
+</div>
+
+<div class="view" id="v-stats"></div>
+
+<div class="view" id="v-more">
+<h3>Appearance</h3>
+<div class="seg" id="seg"><button data-th="auto">Auto</button><button data-th="light">Light</button><button data-th="dark">Dark</button></div>
+<h3>Backup</h3>
+<p class="note">Your cans live on this phone. Export a backup file now and then.</p>
+<div class="row"><button class="outline" id="exp">Export</button><button class="outline" id="imp">Import</button></div>
+<p class="note" id="lastB"></p>
 <input type="file" id="impFile" accept="application/json" hidden>
-</details>
+<h3>How it works</h3>
+<ol class="tips">
+<li>Tap Scan, fit the can in the frame and snap. Keep snapping to scan several.</li>
+<li>Every can earns XP. Rarer cans, new lines and daily streaks earn more. Rank up and unlock achievements.</li>
+<li>Name, rarity and price fill in automatically. Prices are estimates in ₹, so check them.</li>
+<li>Tap any can to edit it, set a quantity, star it or move it to your wishlist.</li>
+<li>Check Stats to see what your vault is worth.</li>
+</ol>
+<h3>Data</h3>
+<button class="outline danger" id="wipe" style="width:100%">Delete all data</button>
+<p class="note" style="margin-top:14px">Can Vault v3</p>
+</div>
 </main>
+
+<nav id="tabs">
+<button data-t="vault"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>Vault</button>
+<button data-t="wish"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Wishlist</button>
+<button class="fab" id="scanBtn" aria-label="Scan a can"><i><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></i></button>
+<button data-t="stats"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Stats</button>
+<button data-t="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>More</button>
+</nav>
 
 <div id="cam">
 <video id="vid" playsinline muted></video>
@@ -118,19 +215,35 @@ details[open] summary{margin-bottom:10px}
 <div class="flash" id="flash"></div>
 </div>
 
+<div id="reveal"><div class="rvwrap">
+<div id="rvStage"></div>
+<h2 id="rvName"></h2><p id="rvMeta" class="note"></p>
+<div class="rvx"><b id="rvXp"></b><span id="rvParts"></span></div>
+<div class="xpbar"><i id="rvBar"></i></div><p class="note" id="rvRank"></p>
+<div id="rvExtra"></div>
+<button class="primary" id="rvOk" style="margin-top:14px">Continue</button>
+<button class="link" id="rvEdit">Edit details</button>
+</div></div>
 <div id="sheet"><div class="panel" id="panel"></div></div>
 <div class="toast" id="toast"></div>
-
 <script>
 const RAR=["Common","Uncommon","Rare","Epic","Legendary"];
 const COL={Common:"var(--common)",Uncommon:"var(--uncommon)",Rare:"var(--rare)",Epic:"var(--epic)",Legendary:"var(--legendary)"};
+const TITLES={vault:"Vault",wish:"Wishlist",stats:"Stats",more:"More"};
 const $=id=>document.getElementById(id);
-let cans=[],filter="All",editId=null,stream=null,camScans=0;
+let cans=[],filter="All",tab="vault",stream=null,camScans=0;
 try{cans=JSON.parse(localStorage.getItem("canvault")||"[]")}catch(e){cans=[]}
+let S={};try{S=JSON.parse(localStorage.getItem("cv_settings")||"{}")}catch(e){S={}}
 function save(){try{localStorage.setItem("canvault",JSON.stringify(cans));return true}catch(e){toast("Storage is full. Export a backup and delete some cans.");return false}}
+function saveS(){try{localStorage.setItem("cv_settings",JSON.stringify(S))}catch(e){}}
+function applyTheme(){const t=S.theme||"auto";if(t==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.dataset.theme=t}
 const money=n=>"₹"+(+n||0).toLocaleString("en-IN",{maximumFractionDigits:2});
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",3500)}
+const qty=c=>Math.max(1,+c.qty||1),val=c=>c.price*qty(c);
+function toast(t,act,fn){const e=$("toast");e.innerHTML="";const s=document.createElement("span");s.textContent=t;e.appendChild(s);
+ if(act){const b=document.createElement("button");b.textContent=act;b.onclick=()=>{fn();e.style.display="none"};e.appendChild(b)}
+ e.style.display="flex";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",act?6000:3500)}
+
 function drawTo(img,max,q){const s=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return c.toDataURL("image/jpeg",q)}
 function shrink(file){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const o={scan:drawTo(img,1280,.85),thumb:drawTo(img,480,.7)};URL.revokeObjectURL(u);res(o)};img.onerror=rej;img.src=u})}
 
@@ -152,22 +265,23 @@ async function scanOne(item,image){
 }
 async function addPhoto(f){
  let sh;try{sh=await shrink(f)}catch(e){toast("Couldn't read that image");return}
- const item={id:Date.now()+""+Math.random().toString(36).slice(2,6),name:"Scanning…",line:"",edition:"",rarity:"Common",price:0,status:"Owned",notes:"",img:sh.thumb,added:Date.now(),scanning:true};
+ const item={id:Date.now()+""+Math.random().toString(36).slice(2,6),name:"Scanning…",line:"",edition:"",rarity:"Common",price:0,status:"Owned",qty:1,fav:false,date:"",notes:"",img:sh.thumb,added:Date.now(),scanning:true};
  cans.push(item);render();
- enqueue(async()=>{await scanOne(item,sh.scan);save();render();showResult(item)});
+ enqueue(async()=>{await scanOne(item,sh.scan);if(item.conf>0){const r=grant(item);if(r)REV.set(item.id,r)}save();render();showResult(item)});
 }
 function showResult(item){
- const hot=RAR.indexOf(item.rarity)>=2&&item.conf>0;
- navigator.vibrate&&navigator.vibrate(hot?[40,40,80]:30);
+ const r=REV.get(item.id);
+ navigator.vibrate&&navigator.vibrate(30);
  if($("cam").classList.contains("open")){
   const b=document.createElement("button");b.className="res";
-  b.innerHTML=`<img src="${item.img}" alt=""><div><b>${esc(item.name)}</b><small>${item.conf?item.rarity:"Check this one"}</small></div><b>${item.conf?money(item.price):""}</b>`;
-  b.onclick=()=>{closeCam();openSheet(item.id)};$("tray").appendChild(b);
+  b.innerHTML=`<img src="${item.img}" alt=""><div><b>${esc(item.name)}</b><small>${item.conf?item.rarity+(r?" · +"+r.gain+" XP":""):"Check this one"}</small></div><b>${item.conf?money(item.price):""}</b>`;
+  b.onclick=()=>{RQ.length=0;closeCam(true);openSheet(item.id)};$("tray").appendChild(b);
   while($("tray").children.length>3)$("tray").firstChild.remove();
   setTimeout(()=>b.remove(),6000);
- }else toast(item.conf?`${item.name} · ${item.rarity} · ${money(item.price)}`:"Couldn't identify that one. Tap it to fix.");
+  if(r)RQ.push(item.id);
+ }else if(item.conf&&r)queueReveal(item);
+ else toast("Couldn't identify that one. Tap it to fix.");
 }
-
 async function openCam(){
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$("fileCam").click();return}
  camScans=0;$("camCount").textContent="0 scanned";$("tray").innerHTML="";$("cam").classList.add("open");
@@ -176,7 +290,7 @@ async function openCam(){
   $("vid").srcObject=stream;await $("vid").play();
  }catch(e){closeCam();toast("Camera blocked. Using your phone camera app instead.");$("fileCam").click()}
 }
-function closeCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("vid").srcObject=null;$("cam").classList.remove("open")}
+function closeCam(skip){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("vid").srcObject=null;$("cam").classList.remove("open");if(!skip)runReveal()}
 $("shutter").onclick=()=>{
  const v=$("vid");if(!v.videoWidth)return;
  const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;c.getContext("2d").drawImage(v,0,0);
@@ -184,65 +298,214 @@ $("shutter").onclick=()=>{
  camScans++;$("camCount").textContent=camScans+" scanned";
  c.toBlob(b=>addPhoto(b),"image/jpeg",.9);
 };
-$("scanBtn").onclick=openCam;$("camClose").onclick=closeCam;
+$("scanBtn").onclick=openCam;$("camClose").onclick=()=>closeCam();
 $("camGal").onclick=()=>$("file").click();$("gal").onclick=()=>$("file").click();
 for(const id of["file","fileCam"])$(id).onchange=e=>{const fs=[...e.target.files];e.target.value="";if(fs.length){closeCam();fs.forEach(addPhoto)}};
 
-function render(){
- const owned=cans.filter(c=>c.status!=="Wishlist"&&!c.scanning);
- const total=owned.reduce((a,c)=>a+c.price,0);
- $("sum").textContent=owned.length?`${owned.length} ${owned.length===1?"can":"cans"} · ${money(total)}`:"";
- const sums=RAR.map(r=>({r,n:owned.filter(c=>c.rarity===r).length,v:owned.filter(c=>c.rarity===r).reduce((a,c)=>a+c.price,0)}));
- const max=Math.max(1,...sums.map(s=>s.v));
- $("chart").innerHTML=owned.length?sums.map(s=>`<div class="bar"><span>${s.r} (${s.n})</span><div class="track"><div class="fill" style="width:${s.v/max*100}%;background:${COL[s.r]}"></div></div><small>${money(s.v)}</small></div>`).join(""):'<p class="note">Nothing to show yet.</p>';
- $("filters").innerHTML=["All",...RAR,"Wishlist"].map(f=>`<button class="chip${f===filter?" on":""}" data-f="${f}">${f}</button>`).join("");
- const q=$("q").value.trim().toLowerCase(),s=$("sort").value;
- let shown=cans.filter(c=>(filter==="All"||(filter==="Wishlist"?c.status==="Wishlist":c.rarity===filter))&&(!q||[c.name,c.line,c.edition,c.notes].join(" ").toLowerCase().includes(q)));
- shown.sort((a,b)=>s==="price"?b.price-a.price:s==="rarity"?RAR.indexOf(b.rarity)-RAR.indexOf(a.rarity):s==="name"?a.name.localeCompare(b.name):(b.added||0)-(a.added||0));
- $("list").innerHTML=shown.length?shown.map(c=>`<button class="card" data-o="${c.id}"><div class="ph">${c.img?`<img src="${c.img}" alt="${esc(c.name)}">`:"🥫"}${c.status==="Wishlist"?'<span class="wish">Wishlist</span>':""}${c.scanning?'<div class="scan">Scanning…</div>':""}</div><div class="info"><b>${esc(c.name)}</b><span><i class="dot" style="background:${COL[c.rarity]}"></i>${c.rarity} · ${money(c.price)}</span></div></button>`).join(""):'<div class="empty">No cans yet.<br>Tap Scan a can to begin.</div>';
-}
-$("q").oninput=render;$("sort").onchange=render;
-$("filters").onclick=e=>{const f=e.target.dataset.f;if(f){filter=f;render()}};
-$("list").onclick=e=>{const b=e.target.closest("[data-o]");if(b)openSheet(b.dataset.o)};
 
-function openSheet(id){
- editId=id;const c=id?cans.find(x=>x.id===id):{name:"",line:"",edition:"",rarity:"Common",price:0,status:"Owned",notes:""};
- if(!c)return;
- $("panel").innerHTML=`${c.img?`<img src="${c.img}" alt="">`:""}
+
+const RANKS=[[0,"Rookie"],[100,"Collector"],[300,"Hoarder"],[700,"Connoisseur"],[1500,"Curator"],[3000,"Legend"]];
+const XPB={Common:10,Uncommon:15,Rare:25,Epic:40,Legendary:70};
+const RHEX={Common:"#7d857f",Uncommon:"#2f8f5b",Rare:"#2b6fd6",Epic:"#7a3fc4",Legendary:"#c47a00"};
+const REV=new Map(),WRAP=new Map(),RQ=[];let revOpen=false,revId=null;
+const calm=matchMedia("(prefers-reduced-motion:reduce)").matches;
+const ownedList=()=>cans.filter(c=>c.status!=="Wishlist"&&!c.scanning);
+const cnt=o=>o.reduce((a,c)=>a+qty(c),0),sumV=o=>o.reduce((a,c)=>a+val(c),0);
+const ACH=[
+["first","First can","Add your first can",o=>o.length>=1],
+["ten","Ten strong","Own 10 cans",o=>cnt(o)>=10],
+["tf","Quarter century","Own 25 cans",o=>cnt(o)>=25],
+["fifty","Half a hundred","Own 50 cans",o=>cnt(o)>=50],
+["rare","Good eye","Find a Rare can",o=>o.some(c=>RAR.indexOf(c.rarity)>=2)],
+["epic","Epic pull","Find an Epic can",o=>o.some(c=>RAR.indexOf(c.rarity)>=3)],
+["leg","Legendary","Find a Legendary can",o=>o.some(c=>c.rarity==="Legendary")],
+["v5","Worth it","Vault worth ₹5,000",o=>sumV(o)>=5000],
+["v25","Serious stash","Vault worth ₹25,000",o=>sumV(o)>=25000],
+["lines","Variety pack","Own 5 product lines",o=>new Set(o.map(c=>(c.line||"").toLowerCase()).filter(Boolean)).size>=5],
+["wish","Wish granted","Get a can from your wishlist",()=>(S.wf||0)>=1],
+["s3","On a roll","3 day streak",()=>(S.streak||0)>=3],
+["s7","Dedicated","7 day streak",()=>(S.streak||0)>=7]];
+function checkAch(){S.ach=S.ach||{};const o=ownedList(),n=[];ACH.forEach(a=>{if(!S.ach[a[0]]&&a[3](o)){S.ach[a[0]]=Date.now();n.push(a)}});return n}
+const rankOf=x=>{let i=0;RANKS.forEach((r,k)=>{if(x>=r[0])i=k});return i};
+function rankInfo(x){const i=rankOf(x),lo=RANKS[i][0],nx=RANKS[i+1];return{i,name:RANKS[i][1],nx,pct:nx?(x-lo)/(nx[0]-lo)*100:100,next:nx?nx[0]-x:0,nextName:nx?nx[1]:""}}
+const dayStr=d=>d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+function streakNow(){if(!S.lastDay)return 0;return(S.lastDay===dayStr(new Date())||S.lastDay===dayStr(new Date(Date.now()-864e5)))?(S.streak||0):0}
+function grant(item){
+ if(item.xpDone||item.status==="Wishlist"||item.scanning)return null;
+ item.xpDone=true;
+ const before=S.xp||0,rb=rankOf(before),nm=item.name.toLowerCase();
+ const dup=cans.some(c=>c!==item&&c.xpDone&&c.status!=="Wishlist"&&c.name.toLowerCase()===nm);
+ const newLine=!!item.line&&!cans.some(c=>c!==item&&c.xpDone&&(c.line||"").toLowerCase()===item.line.toLowerCase());
+ const parts=[];let g=dup?5:(XPB[item.rarity]||10);parts.push([dup?"Duplicate":"New can",g]);
+ if(newLine){g+=10;parts.push(["New line",10])}
+ const t=dayStr(new Date());
+ if(S.lastDay!==t){S.streak=S.lastDay===dayStr(new Date(Date.now()-864e5))?(S.streak||0)+1:1;S.lastDay=t;
+  if(S.streak>1){const b=Math.min(S.streak,5)*2;g+=b;parts.push(["Streak ×"+S.streak,b])}}
+ S.xp=before+g;
+ const ach=checkAch();S.xp+=ach.length*25;
+ saveS();
+ return{gain:S.xp-before,parts,ach,rankUp:rankOf(S.xp)>rb?RANKS[rankOf(S.xp)][1]:null,before,after:S.xp};
+}
+function confetti(){if(calm)return;const cs=["var(--legendary)","var(--epic)","var(--rare)","var(--uncommon)","#fff"];
+ for(let i=0;i<36;i++){const p=document.createElement("i");p.className="cf";p.style.cssText=`background:${cs[i%5]};--dx:${(Math.random()-.5)*340}px;--dy:${-Math.random()*360-60}px;--r:${Math.random()*720}deg`;document.body.appendChild(p);setTimeout(()=>p.remove(),1300)}}
+async function wrapOf(c){
+ const k=c.id+"|"+(c.img?c.img.length:0)+"|"+c.name+"|"+c.rarity;if(WRAP.has(k))return WRAP.get(k);
+ const W=280,H=420,cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
+ const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,RHEX[c.rarity]||"#555");g.addColorStop(1,"#111");x.fillStyle=g;x.fillRect(0,0,W,H);
+ let img=null;if(c.img)img=await new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=c.img});
+ if(img){const s=Math.max(W/img.width,H/img.height),w=img.width*s,h=img.height*s;x.drawImage(img,(W-w)/2,(H-h)/2,w,h)}
+ else{x.fillStyle="#fff";x.textAlign="center";x.font="bold 34px system-ui,sans-serif";
+  const words=c.name.split(" ");let line="",y=190;words.forEach(w=>{if((line+w).length>11){x.fillText(line.trim(),W/2,y);y+=42;line=""}line+=w+" "});x.fillText(line.trim(),W/2,y)}
+ const u=cv.toDataURL("image/jpeg",.85);WRAP.set(k,u);return u;
+}
+function can3d(url,sc=1){
+ const N=24,W=140,H=210,R=W/(140*Math.PI/180),sw=W/N;let sl="";
+ for(let i=0;i<N;i++){const a=-70+(i+.5)*140/N;sl+=`<i class="sl" style="width:${(sw+.8).toFixed(2)}px;margin-left:${(-sw/2).toFixed(2)}px;background-position:${(-i*sw).toFixed(2)}px 0;transform:rotateY(${a.toFixed(2)}deg) translateZ(${R.toFixed(2)}px)"></i>`}
+ return `<div class="cw" style="height:${H*sc+10}px"><div class="can3d" style="--img:url('${url}');transform:scale(${sc})"><div class="cyl">${sl}</div><i class="cs"></i><i class="rim t"></i><i class="rim b"></i><i class="gnd"></i></div></div>`;
+}
+function queueReveal(item){RQ.push(item.id);if(!$("cam").classList.contains("open"))runReveal()}
+async function runReveal(){
+ if(revOpen||!RQ.length)return;
+ const id=RQ.shift(),c=cans.find(x=>x.id===id),r=REV.get(id);
+ if(!c||!r)return runReveal();
+ revOpen=true;revId=id;
+ const url=await wrapOf(c);
+ $("reveal").style.setProperty("--rc",COL[c.rarity]);
+ const st=$("rvStage");st.style.animation="none";void st.offsetWidth;st.style.animation="";st.innerHTML=can3d(url,1.2);
+ $("rvName").textContent=c.name;
+ $("rvMeta").innerHTML=`<span class="pill" style="background:${COL[c.rarity]}">${c.rarity}</span> &nbsp;${money(c.price)}${c.line?" · "+esc(c.line):""}`;
+ const el=$("rvXp");
+ if(calm)el.textContent="+"+r.gain+" XP";else{const t0=performance.now();(function f(t){const p=Math.min(1,(t-t0)/700);el.textContent="+"+Math.round(r.gain*p)+" XP";if(p<1)requestAnimationFrame(f)})(t0)}
+ $("rvParts").textContent=r.parts.map(p=>p[0]+" +"+p[1]).join(" · ");
+ const ra=rankInfo(r.after),rbf=rankInfo(r.before),bar=$("rvBar");
+ bar.style.transition="none";bar.style.width=(rbf.i===ra.i?rbf.pct:0)+"%";void bar.offsetWidth;bar.style.transition="";requestAnimationFrame(()=>bar.style.width=ra.pct+"%");
+ $("rvRank").textContent=ra.name+" · "+r.after+" XP"+(ra.nx?" · "+ra.next+" to "+ra.nextName:"");
+ $("rvExtra").innerHTML=(r.rankUp?`<p class="up">Rank up: ${esc(r.rankUp)}</p>`:"")+r.ach.map(a=>`<p class="note"><b>Achievement unlocked:</b> ${esc(a[1])} (+25 XP)</p>`).join("");
+ $("rvOk").textContent=RQ.length?"Next ("+RQ.length+" more)":"Continue";
+ $("reveal").classList.add("open");
+ navigator.vibrate&&navigator.vibrate(r.rankUp?[60,40,60,40,120]:[40,30,60]);
+ if(r.rankUp||c.rarity==="Legendary"||r.ach.length)setTimeout(confetti,350);
+}
+function closeReveal(){$("reveal").classList.remove("open");$("rvStage").innerHTML="";revOpen=false;if(RQ.length)runReveal();else render()}
+$("rvOk").onclick=closeReveal;
+$("rvEdit").onclick=()=>{const id=revId;RQ.length=0;closeReveal();openSheet(id)};
+function rankCard(){
+ const x=S.xp||0,ri=rankInfo(x);
+ return `<div class="tile" style="margin-bottom:6px"><span>Rank</span><b>${ri.name}</b><div class="xpbar"><i style="width:${ri.pct}%"></i></div><span>${x} XP${ri.nx?" · "+ri.next+" XP to "+ri.nextName:" · Max rank"}${streakNow()>1?" · "+streakNow()+" day streak":""}</span></div>`;
+}
+function achHTML(){
+ const a=S.ach||{},n=ACH.filter(x=>a[x[0]]).length;
+ return `<h3>Achievements · ${n}/${ACH.length}</h3><div class="ach">${ACH.map(x=>`<div class="a${a[x[0]]?" on":""}"><b>${x[1]}</b>${x[2]}</div>`).join("")}</div>`;
+}
+function go(t){tab=t;window.scrollTo(0,0);render()}
+function bars(list,fmt){const m=Math.max(1,...list.map(r=>r.v));return list.map(r=>`<div class="bar"><span>${esc(r.l)}</span><div class="track"><div class="fill" style="width:${r.v/m*100}%;background:${r.c||"var(--ink)"}"></div></div><small>${fmt(r.v)}</small></div>`).join("")}
+function cardHTML(c,dup){
+ return `<button class="card" data-o="${c.id}"><div class="ph"><div class="mini ${c.rarity}">${c.img?`<img src="${c.img}" alt="${esc(c.name)}">`:'<b class="gen">🥫</b>'}<i class="sh"></i><i class="rim t"></i><i class="rim b"></i></div>${c.fav?'<span class="star">★</span>':""}${qty(c)>1?`<span class="tag">×${qty(c)}</span>`:""}${c.scanning?'<div class="scan">Scanning…</div>':""}</div><div class="info"><b>${esc(c.name)}</b><span><i class="dot" style="background:${COL[c.rarity]}"></i>${c.rarity} · ${money(c.price)}${dup?" · Duplicate?":""}</span></div></button>`;
+}
+function render(){
+ document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==="v-"+tab));
+ document.querySelectorAll("#tabs [data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
+ $("title").textContent=TITLES[tab];
+ const owned=cans.filter(c=>c.status!=="Wishlist"&&!c.scanning);
+ const count=owned.reduce((a,c)=>a+qty(c),0),total=owned.reduce((a,c)=>a+val(c),0);
+ $("sum").textContent=tab==="vault"&&count?`${count} ${count===1?"can":"cans"} · ${money(total)}`:"";
+ const ri=rankInfo(S.xp||0),sk=streakNow();
+ $("rankStrip").innerHTML=`<div><b>${ri.name}</b><span>${S.xp||0} XP${sk>1?" · "+sk+" day streak":""}</span></div><div class="xpbar" style="margin:0"><i style="width:${ri.pct}%"></i></div>`;
+ $("viewBtn").textContent=S.view==="list"?"Grid":"List";$("list").classList.toggle("list",S.view==="list");
+ // vault
+ $("filters").innerHTML=["All",...RAR,"Favorites"].map(f=>`<button class="chip${f===filter?" on":""}" data-f="${f}">${f}</button>`).join("");
+ const q=$("q").value.trim().toLowerCase(),s=$("sort").value,names={};
+ owned.forEach(c=>{const k=c.name.toLowerCase();names[k]=(names[k]||0)+1});
+ let shown=cans.filter(c=>c.status!=="Wishlist"&&(filter==="All"||(filter==="Favorites"?c.fav:c.rarity===filter))&&(!q||[c.name,c.line,c.edition,c.notes].join(" ").toLowerCase().includes(q)));
+ shown.sort((a,b)=>s==="price"?b.price-a.price:s==="rarity"?RAR.indexOf(b.rarity)-RAR.indexOf(a.rarity):s==="name"?a.name.localeCompare(b.name):(b.added||0)-(a.added||0));
+ $("list").innerHTML=shown.length?shown.map(c=>cardHTML(c,!c.scanning&&names[c.name.toLowerCase()]>1)).join(""):(cans.some(c=>c.status!=="Wishlist")?'<div class="empty"><b>No matches</b>Try a different search or filter.</div>':'<div class="empty"><b>Your vault is empty</b>Tap the camera button below to scan your first can.</div>');
+ // wishlist
+ const wl=cans.filter(c=>c.status==="Wishlist").sort((a,b)=>(b.added||0)-(a.added||0));
+ $("wlist").innerHTML=wl.length?wl.map(c=>cardHTML(c,false)).join(""):'<div class="empty"><b>Nothing on your wishlist</b>Add cans you are hunting for.</div>';
+ // stats
+ const top=owned.reduce((a,c)=>!a||c.price>a.price?c:a,null);
+ const lines={};owned.forEach(c=>{const k=c.line||"Other";lines[k]=(lines[k]||0)+qty(c)});
+ const now=new Date(),months=[];for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({l:d.toLocaleString("en",{month:"short"}),y:d.getFullYear(),m:d.getMonth(),v:0})}
+ owned.forEach(c=>{const d=new Date(c.added||0);const m=months.find(x=>x.y===d.getFullYear()&&x.m===d.getMonth());if(m)m.v+=qty(c)});
+ $("v-stats").innerHTML=rankCard()+(owned.length?`<div class="tiles"><div class="tile"><b>${count}</b><span>Cans</span></div><div class="tile"><b>${money(total)}</b><span>Total value</span></div><div class="tile"><b>${money(total/Math.max(1,count))}</b><span>Average</span></div><div class="tile"><b>${money(top.price)}</b><span>${esc(top.name)}</span></div></div>
+ <h3>Value by rarity</h3>${bars(RAR.map(r=>({l:`${r} (${owned.filter(c=>c.rarity===r).reduce((a,c)=>a+qty(c),0)})`,v:owned.filter(c=>c.rarity===r).reduce((a,c)=>a+val(c),0),c:COL[r]})),money)}
+ <h3>Top lines</h3>${bars(Object.entries(lines).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([l,v])=>({l,v})),n=>n)}
+ <h3>Most valuable</h3>${owned.slice().sort((a,b)=>b.price-a.price).slice(0,3).map(c=>`<div class="grid list" style="margin-bottom:6px">${cardHTML(c,false)}</div>`).join("")}
+ <h3>Added per month</h3>${bars(months,n=>n)}`:'<div class="empty"><b>No stats yet</b>Scan a few cans and your numbers show up here.</div>')+achHTML();
+ // more
+ document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.th===(S.theme||"auto")));
+ $("lastB").textContent=S.lastBackup?"Last backup: "+new Date(S.lastBackup).toLocaleDateString():"No backup yet.";
+}
+
+document.addEventListener("click",e=>{
+ if(e.target.closest("#rankStrip")){go("stats");return}
+ const t=e.target.closest("#tabs [data-t]");if(t){go(t.dataset.t);return}
+ const o=e.target.closest("[data-o]");if(o){openSheet(o.dataset.o);return}
+ const f=e.target.closest("[data-f]");if(f){filter=f.dataset.f;render();return}
+ const th=e.target.closest("[data-th]");if(th){S.theme=th.dataset.th;saveS();applyTheme();render()}
+});
+$("q").oninput=render;$("sort").onchange=render;
+$("viewBtn").onclick=()=>{S.view=S.view==="list"?"grid":"list";saveS();render()};
+$("manual").onclick=()=>openSheet(null,"Owned");$("wadd").onclick=()=>openSheet(null,"Wishlist");
+
+function openSheet(id,st){
+ const c=id?cans.find(x=>x.id===id):{name:"",line:"",edition:"",rarity:"Common",price:0,qty:1,fav:false,date:"",status:st||"Owned",notes:""};
+ if(!c)return;let fav=!!c.fav;
+ $("panel").innerHTML=`${c.img?'<div id="sheetStage" class="stage"></div>':""}
  ${c.conf!=null&&c.img?`<p class="note">Scan confidence ${c.conf}%. Prices are estimates, so check them.</p>`:""}
  <label for="f_name">Name</label><input id="f_name" value="${esc(c.name)}">
  <div class="row"><div><label for="f_line">Line</label><input id="f_line" value="${esc(c.line)}"></div><div><label for="f_ed">Edition</label><input id="f_ed" value="${esc(c.edition)}"></div></div>
  <div class="row"><div><label for="f_r">Rarity</label><select id="f_r">${RAR.map(r=>`<option${r===c.rarity?" selected":""}>${r}</option>`).join("")}</select></div>
- <div><label for="f_p">Price (₹)</label><input id="f_p" type="number" inputmode="decimal" min="0" step="0.01" value="${c.price}"></div></div>
+ <div><label for="f_p">Price (₹)</label><input id="f_p" type="number" inputmode="decimal" min="0" step="any" value="${c.price}"></div></div>
+ <div class="row"><div><label for="f_q">Quantity</label><input id="f_q" type="number" inputmode="numeric" min="1" step="1" value="${qty(c)}"></div>
+ <div><label for="f_d">Date got it</label><input id="f_d" type="date" value="${esc(c.date||"")}"></div></div>
  <label for="f_s">Status</label><select id="f_s"><option${c.status!=="Wishlist"?" selected":""}>Owned</option><option${c.status==="Wishlist"?" selected":""}>Wishlist</option></select>
  <label for="f_n">Notes</label><textarea id="f_n" rows="2">${esc(c.notes)}</textarea>
- <button class="primary" id="f_save" style="margin-top:12px">Save</button>
- <div class="row" style="margin-top:8px"><button id="f_close">Close</button>${id?'<button class="danger" id="f_del">Delete</button>':"<span></span>"}</div>`;
+ <button class="primary" id="f_save" style="margin-top:14px">Save</button>
+ <div class="row" style="margin-top:8px"><button class="outline" id="f_fav">${fav?"★ Favorite":"☆ Favorite"}</button><button class="outline" id="f_close">Close</button></div>
+ ${id?'<button class="link danger" id="f_del">Delete this can</button>':""}`;
  $("sheet").classList.add("open");
+ if(c.img)wrapOf(c).then(u=>{const st=$("sheetStage");if(st)st.innerHTML=can3d(u,.8)});
  $("f_close").onclick=closeSheet;
+ $("f_fav").onclick=()=>{fav=!fav;$("f_fav").textContent=fav?"★ Favorite":"☆ Favorite"};
  $("f_save").onclick=()=>{
-  const v={name:$("f_name").value.trim()||"Unnamed can",line:$("f_line").value.trim(),edition:$("f_ed").value.trim(),rarity:$("f_r").value,price:Math.max(0,parseFloat($("f_p").value)||0),status:$("f_s").value,notes:$("f_n").value.trim()};
-  if(id)Object.assign(c,v);else cans.push({id:Date.now()+"",added:Date.now(),...v});
-  save();closeSheet();render();
+  const v={name:$("f_name").value.trim()||"Unnamed can",line:$("f_line").value.trim(),edition:$("f_ed").value.trim(),rarity:$("f_r").value,price:Math.max(0,parseFloat($("f_p").value)||0),qty:Math.max(1,parseInt($("f_q").value)||1),date:$("f_d").value,status:$("f_s").value,notes:$("f_n").value.trim(),fav};
+  let t=c;const wasWish=!!id&&c.status==="Wishlist";
+  if(id)Object.assign(c,v);else{t={id:Date.now()+"",added:Date.now(),...v};cans.push(t)}
+  if(wasWish&&v.status==="Owned")S.wf=(S.wf||0)+1;
+  const r=grant(t);if(r)REV.set(t.id,r);
+  save();saveS();closeSheet();render();
+  if(r)queueReveal(t);else toast("Saved");
  };
- if(id)$("f_del").onclick=()=>{if(confirm("Delete this can?")){cans=cans.filter(x=>x.id!==id);save();closeSheet();render()}};
+ if(id)$("f_del").onclick=()=>{const i=cans.findIndex(x=>x.id===id),rm=cans.splice(i,1)[0];save();closeSheet();render();
+  toast("Can deleted","Undo",()=>{cans.splice(Math.min(i,cans.length),0,rm);save();render()})};
 }
 function closeSheet(){$("sheet").classList.remove("open")}
 $("sheet").onclick=e=>{if(e.target.id==="sheet")closeSheet()};
-$("manual").onclick=()=>openSheet(null);
 
 $("exp").onclick=()=>{
  const u=URL.createObjectURL(new Blob([JSON.stringify(cans)],{type:"application/json"}));
  const l=document.createElement("a");l.href=u;l.download="can-vault-backup.json";document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
+ S.lastBackup=Date.now();saveS();render();
 };
 $("imp").onclick=()=>$("impFile").click();
 $("impFile").onchange=async e=>{
  const f=e.target.files[0];e.target.value="";if(!f)return;
  try{const a=JSON.parse(await f.text());if(!Array.isArray(a))throw 0;
-  const ids=new Set(cans.map(c=>c.id));a.forEach(c=>{if(c&&c.id&&!ids.has(c.id))cans.push(c)});save();render();toast("Backup imported")
+  const ids=new Set(cans.map(c=>c.id));let n=0;a.forEach(c=>{if(c&&c.id&&!ids.has(c.id)){cans.push(c);n++}});save();render();toast(n+" cans imported")
  }catch(err){toast("That file isn't a Can Vault backup")}
 };
-render();
+$("wipe").onclick=()=>{if(confirm("Delete all cans and settings? Export a backup first. This can't be undone.")){cans=[];S={};save();saveS();if(S.xp==null){S.xp=0;cans.forEach(c=>{if(c.status!=="Wishlist"&&!c.scanning){c.xpDone=true;S.xp+=XPB[c.rarity]||10}});checkAch();save();saveS()}
+applyTheme();render();toast("All data deleted")}};
+
+function welcome(){
+ $("panel").innerHTML=`<h1 style="margin-bottom:8px">Welcome to Can Vault</h1>
+ <ol class="tips"><li>Tap the camera button to scan a can. Name, rarity and price fill in for you.</li><li>Earn XP for every can, rank up and unlock achievements.</li><li>Star favorites, set quantities and keep a wishlist.</li><li>Check Stats to see what your collection is worth.</li></ol>
+ <button class="primary" id="w_go" style="margin-top:14px">Get started</button>`;
+ $("sheet").classList.add("open");$("w_go").onclick=()=>{closeSheet();S.seen=1;saveS()};
+}
+applyTheme();render();
+if(!S.seen&&!cans.length)welcome();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
