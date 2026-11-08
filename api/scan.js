@@ -1,32 +1,48 @@
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
 
-const PROMPT = `You are an expert catalogue assistant for an energy drink can collection (mostly Monster Energy, but any brand is possible).
-Look carefully at the photo. Read ALL the text printed on the can (brand, product line, flavor name, edition, country, any collab or athlete name) and identify the exact can.
+const PROMPT = `You are an expert catalogue assistant for a collection of canned and bottled drinks: energy drinks, sodas, juices, beers, anything.
+Look carefully at the photo. Read ALL the text printed on the container (brand, product line, flavor, edition, country, any collab or athlete name) and identify the exact drink.
 Fill every field. Never leave a field empty: if you are unsure, give your best guess and lower the confidence.
-- name: full product name, e.g. "Monster Ultra Paradise"
-- line: product line, e.g. Ultra, Juice, Rehab, Java, Original, Zero Sugar
+- brand: the brand, e.g. Monster Energy, Coca-Cola, Red Bull
+- name: full product name including the brand, e.g. "Monster Ultra Paradise" or "Coca-Cola Zero Sugar"
+- line: product line or variant family, e.g. Ultra, Zero Sugar, Original, Diet, Juice
 - edition: special edition, country, collab or athlete if visible, otherwise a short note like "Standard"
 - rarity: one of Common, Uncommon, Rare, Epic, Legendary.
-  Common = current mainstream flavor. Uncommon = seasonal or regional release. Rare = discontinued or limited run. Epic = athlete signature, collab or very limited. Legendary = prototype, vintage or extremely scarce.
-- price: realistic value of ONE can in Indian rupees (INR) for a buyer in India, as a plain number with no symbol. About 125-150 for a common current can sold in India, higher for imported or collectible cans.
-- notes: one short interesting sentence about this can.
+  Common = current mainstream product. Uncommon = seasonal or regional release. Rare = discontinued or limited run. Epic = athlete signature, collab or very limited. Legendary = prototype, vintage or extremely scarce.
+- price: realistic value of ONE container in Indian rupees (INR) for a buyer in India, as a plain number with no symbol. Roughly 20-60 for a common soft drink, 110-150 for a common energy drink, and higher for imported or collectible ones.
+- notes: one short interesting sentence about this drink.
 - confidence: 0-100, how sure you are of the identification.
-If the photo does not show a can at all, set name to "Unknown", confidence to 0, and price to 0.`;
+- box: a tight bounding box around the main can or bottle in the photo, as integers from 0 to 1000 (ymin, xmin, ymax, xmax; 0,0 is the top-left corner). If you cannot see one, use 0,0,1000,1000.
+If the photo does not show a drink container at all, set name to "Unknown", confidence to 0, and price to 0.`;
 
 const SCHEMA = {
   type: "OBJECT",
   properties: {
+    brand: { type: "STRING" },
     name: { type: "STRING" },
     line: { type: "STRING" },
     edition: { type: "STRING" },
     rarity: { type: "STRING", enum: RARITIES },
     price: { type: "NUMBER" },
     notes: { type: "STRING" },
-    confidence: { type: "INTEGER" }
+    confidence: { type: "INTEGER" },
+    box: {
+      type: "OBJECT",
+      properties: { ymin: { type: "INTEGER" }, xmin: { type: "INTEGER" }, ymax: { type: "INTEGER" }, xmax: { type: "INTEGER" } }
+    }
   },
-  required: ["name", "line", "edition", "rarity", "price", "notes", "confidence"]
+  required: ["brand", "name", "line", "edition", "rarity", "price", "notes", "confidence"]
 };
+
+function cleanBox(b) {
+  if (!b || typeof b !== "object") return null;
+  const c = (v) => Math.max(0, Math.min(1000, Math.round(Number(v))));
+  const o = { ymin: c(b.ymin), xmin: c(b.xmin), ymax: c(b.ymax), xmax: c(b.xmax) };
+  if (![o.ymin, o.xmin, o.ymax, o.xmax].every(Number.isFinite)) return null;
+  if (o.ymax - o.ymin < 60 || o.xmax - o.xmin < 40) return null;
+  return o;
+}
 
 let found = null;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -85,6 +101,8 @@ async function callGemini(key, parts, json) {
 module.exports = async (req, res) => {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return res.status(500).json({ error: "GEMINI_API_KEY is not set in Vercel" });
+  const need = process.env.APP_PASSCODE;
+  if (need && req.headers["x-passcode"] !== need) return res.status(401).json({ error: "Wrong or missing passcode. Set it in More." });
   try {
     if (req.method === "GET") {
       await callGemini(key, [{ text: "Reply with the word OK" }], false);
@@ -96,7 +114,7 @@ module.exports = async (req, res) => {
     const m = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec((body && body.image) || "");
     let reqParts;
     if (body && typeof body.text === "string" && body.text.trim()) {
-      reqParts = [{ text: PROMPT + "\n\nThere is no photo. Instead, identify the can from this catalogue entry and fill every field: " + body.text.slice(0, 300) }];
+      reqParts = [{ text: PROMPT + "\n\nThere is no photo. Instead, identify the drink from this entry and fill every field (use 0,0,1000,1000 for box): " + body.text.slice(0, 300) }];
     } else if (m) {
       reqParts = [{ text: PROMPT }, { inline_data: { mime_type: m[1], data: m[2] } }];
     } else {
@@ -112,13 +130,15 @@ module.exports = async (req, res) => {
     if (!hit) return res.status(502).json({ error: "The AI returned no details. Try again with a clearer photo." });
     const o = JSON.parse(hit[0]);
     const out = {
+      brand: String(o.brand || "").trim(),
       name: String(o.name || "Unknown can").trim(),
       line: String(o.line || "").trim(),
       edition: String(o.edition || "").trim(),
       rarity: RARITIES.includes(o.rarity) ? o.rarity : "Common",
       price: Math.max(0, Math.round(Number(String(o.price).replace(/[^\d.]/g, "")) || 0)),
       notes: String(o.notes || "").trim(),
-      confidence: Math.max(0, Math.min(100, Math.round(Number(o.confidence) || 0)))
+      confidence: Math.max(0, Math.min(100, Math.round(Number(o.confidence) || 0))),
+      box: cleanBox(o.box)
     };
     return res.status(200).json(out);
   } catch (e) {
