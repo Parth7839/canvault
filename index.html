@@ -161,6 +161,18 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink);padd
 .cimg{aspect-ratio:3/4;background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:34px}
 .cimg img{width:100%;height:100%;object-fit:contain}
 .cc .row button{padding:8px 4px;font-size:13px}
+.cmode{display:flex;background:#0008;border-radius:99px;padding:3px}
+.cmode button{background:none;color:#fff;padding:6px 14px;border-radius:99px;font-size:14px}
+.cmode button.on{background:#fff;color:#000;font-weight:700}
+.frame{overflow:hidden;transition:border-color .2s}
+.frame .sweep{position:absolute;left:0;right:0;top:0;height:3px;background:#8be000;box-shadow:0 0 14px 2px #8be000;opacity:0}
+.frame .hold{position:absolute;left:0;bottom:0;height:4px;width:calc(var(--p,0)*100%);background:#8be000;transition:width .15s}
+#cam.sc .frame{border-color:#8be000}
+#cam.sc .frame .sweep{opacity:1;animation:scanline 1.2s ease-in-out infinite alternate}
+@keyframes scanline{from{top:0}to{top:calc(100% - 3px)}}
+#cam.bc .cmode{display:none}
+#torch.on{background:#ffd54a!important;color:#000!important}
+#ccats{margin:8px 0 0}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -188,7 +200,7 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink);padd
 
 <div class="view" id="v-wish">
 <p class="note">Cans you want to find. Mark them as owned when you get them.</p>
-<button class="outline" id="catW" style="width:100%;margin-bottom:12px">Browse the can catalogue</button>
+<button class="outline" id="catW" style="width:100%;margin-bottom:12px">Browse the drink catalogue</button>
 <div class="grid" id="wlist"></div>
 <button class="link" id="wadd" style="margin-top:14px">Add to wishlist</button>
 </div>
@@ -242,11 +254,11 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink);padd
 
 <div id="cam">
 <video id="vid" playsinline muted></video>
-<div class="frame"></div>
+<div class="frame"><div class="sweep"></div><div class="hold"></div></div>
 <div class="hint" id="hint">Fit the whole can in the frame</div>
-<div class="camtop"><span id="camCount">0 scanned</span><button id="camClose">Done</button></div>
+<div class="camtop"><span id="camCount">0 scanned</span><div class="cmode" id="cmode"><button data-m="manual">Manual</button><button data-m="auto">Auto</button></div><button id="camClose">Done</button></div>
 <div class="tray" id="tray"></div>
-<div class="camctl"><button id="camGal" aria-label="Upload from gallery">🖼️</button><button class="shut" id="shutter" aria-label="Take photo"></button><span style="width:52px"></span></div>
+<div class="camctl"><button id="camGal" aria-label="Upload from gallery">🖼️</button><button class="shut" id="shutter" aria-label="Take photo"></button><button id="torch" aria-label="Flash">⚡</button></div>
 <div class="flash" id="flash"></div>
 </div>
 
@@ -260,11 +272,12 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink);padd
 <button class="link" id="rvEdit">Edit details</button>
 </div></div>
 <div id="catalog"><div class="chead"><h1>Catalogue</h1><button class="outline" id="cclose">Done</button></div>
-<input id="cq" type="search" placeholder="Search Monster cans" aria-label="Search the catalogue">
+<input id="cq" type="search" placeholder="Search any drink" aria-label="Search the catalogue">
+<div class="filters" id="ccats"></div>
 <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:8px"><input id="cbc" inputmode="numeric" placeholder="Or type a barcode" aria-label="Barcode"><button class="outline" id="cbcGo">Find</button><button class="outline" id="cbcCam" style="display:none">Scan</button></div>
 <p class="note" id="cmsg"></p><div class="cgrid" id="cgrid"></div>
 <button class="outline" id="cmore" style="width:100%;display:none;margin:14px 0">Load more</button>
-<p class="note">Catalogue data and photos come from Open Food Facts (data ODbL, photos CC BY-SA). It covers cans sold in shops, so rare collectibles may be missing.</p></div>
+<p class="note">Catalogue data and photos come from Open Food Facts (data ODbL, photos CC BY-SA). It covers drinks sold in shops, so rare collectibles may be missing. Can't find yours? Search its name and add it yourself.</p></div>
 <div id="sheet"><div class="panel" id="panel"></div></div>
 <div class="toast" id="toast"></div>
 <script>
@@ -318,27 +331,34 @@ async function callScan(p){
 async function scanOne(item,image){
  try{
   let j;for(let t=0;t<3;t++){try{j=await callScan(image);break}catch(e){if(t===2||/not found|not set|not valid|passcode/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,3000*(t+1)))}}
-  item.name=j.name||"Unknown can";item.line=j.line||"";item.edition=j.edition||"";
+  item.name=j.name||"Unknown can";if(j.brand&&j.name&&!String(j.name).toLowerCase().includes(String(j.brand).toLowerCase()))item.name=j.brand+" "+j.name;item.line=j.line||"";item.edition=j.edition||"";item._box=j.box||null;
   item.rarity=RAR.includes(j.rarity)?j.rarity:"Common";item.price=Math.max(0,+j.price||0);
   item.notes=j.notes||"";item.conf=Math.round(+j.confidence||0);
  }catch(e){item.name="Unknown can";item.fails=(item.fails||0)+1;item.notes="Auto-scan failed: "+((e instanceof TypeError||/Failed to fetch|NetworkError|Load failed/i.test(e.message))?"No internet connection":String(e.message||e).slice(0,160));item.conf=0}
  item.scanning=false;
 }
 const CAT=new Map();
-const okProd=p=>p&&p.product_name&&/monster/i.test(p.brands||"")&&!/munch|chips|snack|crisps|candy/i.test((p.brands||"")+" "+p.product_name);
-async function offFetch(q,page,ms){
- const u="https://world.openfoodfacts.org/cgi/search.pl?action=process&json=1&search_simple=1&page_size=24&page="+page+"&search_terms="+encodeURIComponent(q)+"&tagtype_0=brands&tag_contains_0=contains&tag_0=monster&fields=code,product_name,brands,quantity,image_front_url,image_front_small_url";
- const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms||9000);
- try{const r=await fetch(u,{signal:ac.signal});if(!r.ok)throw new Error("HTTP "+r.status);const j=await r.json();const raw=j.products||[];return{items:raw.filter(okProd),raw:raw.length}}
- finally{clearTimeout(t)}
+const okProd=p=>!!(p&&p.product_name&&String(p.product_name).trim().length>1);
+let catCat="beverages";
+const CCATS=[["All drinks","beverages"],["Energy","energy-drinks"],["Soda","sodas"],["Juice","juices"],["Beer","beers"]];
+async function offFetch(q,page,ms,cat,tries){
+ const u="https://world.openfoodfacts.org/cgi/search.pl?action=process&json=1&search_simple=1&page_size=24&sort_by=unique_scans_n&page="+page+"&search_terms="+encodeURIComponent(q)+"&tagtype_0=categories&tag_contains_0=contains&tag_0="+encodeURIComponent(cat||"beverages")+"&fields=code,product_name,brands,quantity,image_front_url,image_front_small_url";
+ let last=null;
+ for(let a=0;a<(tries||2);a++){
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms||12000);
+  try{const r=await fetch(u,{signal:ac.signal});if(!r.ok)throw new Error("HTTP "+r.status);const j=await r.json();const raw=j.products||[];return{items:raw.filter(okProd),raw:raw.length}}
+  catch(e){last=e;if(a+1<(tries||2))await new Promise(r=>setTimeout(r,800))}
+  finally{clearTimeout(t)}
+ }
+ throw last;
 }
 async function matchCat(item){
  try{
-  const toks=x=>String(x).toLowerCase().replace(/monster|energy|drink|[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>1);
-  const want=toks(item.name+" "+item.line);if(!want.length)return;
-  const {items}=await offFetch(want.slice(0,4).join(" "),1,6000);
+  const toks=x=>String(x).toLowerCase().replace(/energy|drink|[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>1);
+  const want=toks(item.name);if(!want.length)return;
+  const {items}=await offFetch(want.slice(0,5).join(" "),1,7000,"beverages",1);
   let best=null,bs=0;
-  items.forEach(p=>{const have=toks(p.product_name);if(!have.length||!(p.image_front_url||p.image_front_small_url))return;
+  items.forEach(p=>{const have=toks((p.brands||"").split(",")[0]+" "+p.product_name);if(!have.length||!(p.image_front_url||p.image_front_small_url))return;
    const hit=want.filter(w=>have.includes(w)).length,sc=hit/Math.max(want.length,have.length);if(sc>bs){bs=sc;best=p}});
   if(best&&bs>=0.6){item.catImg=best.image_front_url||best.image_front_small_url;item.catCode=best.code;item.catName=best.product_name}
  }catch(e){}
@@ -351,22 +371,34 @@ async function estimateText(item,text){
 }
 function addFromCat(p,status){
  if(cans.some(c=>c.catCode===p.code&&c.status===status)){toast("Already in your "+(status==="Wishlist"?"wishlist":"vault"));return}
- const br=String(p.brands||"").split(",")[0].trim(),nm=/monster/i.test(p.product_name)?p.product_name:(/monster/i.test(br)||!br||new RegExp(br.replace(/[^\w ]/g,""),"i").test(p.product_name))?(/monster/i.test(br)?"Monster ":"")+p.product_name:br+" "+p.product_name;
- const lm=nm.match(/(Ultra|Juice|Rehab|Java|Reserve|Hydro|Zero|Original|Mango Loco|Pipeline|Khaotic|Assault|Lo-Carb|Punch)/i);
- const item={id:Date.now()+""+Math.random().toString(36).slice(2,6),name:nm,line:lm?lm[1][0].toUpperCase()+lm[1].slice(1):"",edition:p.quantity||"",rarity:"Common",price:0,status,qty:1,fav:false,date:"",notes:"",catImg:p.image_front_url||p.image_front_small_url||"",catCode:p.code,added:Date.now(),scanning:true,xpDone:true};
+ const br0=String(p.brands||"").split(",")[0].trim(),br=/monster/i.test(br0)?"Monster":br0,pn=String(p.product_name).trim();
+ const nm=(br&&!pn.toLowerCase().includes(br.toLowerCase()))?br+" "+pn:pn;
+ const lm=nm.match(/(Zero Sugar|Zero|Diet|Light|Original|Classic|Ultra|Juice|Rehab|Java|Reserve|Hydro|Lo-Carb|Punch)/i);
+ const item={id:Date.now()+""+Math.random().toString(36).slice(2,6),name:nm,line:lm?lm[1][0].toUpperCase()+lm[1].slice(1).toLowerCase():"",edition:p.quantity||"",rarity:"Common",price:0,status,qty:1,fav:false,date:"",notes:"",catImg:p.image_front_url||p.image_front_small_url||"",catCode:p.code,added:Date.now(),scanning:true,xpDone:true};
  cans.push(item);save();render();toast(status==="Wishlist"?"Added to wishlist":"Added to vault");if(status==="Wishlist")qBump("wish");
  enqueue(async()=>{await estimateText(item,nm+" "+(p.quantity||"")+" (barcode "+p.code+")");save();render()});
 }
+function addCustom(name,status){
+ name=String(name||"").trim().slice(0,80);if(!name){toast("Type a drink name first");return}
+ const item={id:Date.now()+""+Math.random().toString(36).slice(2,6),name,line:"",edition:"",rarity:"Common",price:0,status,qty:1,fav:false,date:"",notes:"",added:Date.now(),scanning:true,xpDone:true};
+ cans.push(item);save();render();toast(status==="Wishlist"?"Added to wishlist":"Added to vault");if(status==="Wishlist")qBump("wish");
+ enqueue(async()=>{await estimateText(item,name);if(item.conf>0)await matchCat(item);save();render()});
+}
+function customCard(){
+ const old=$("cust");if(old)old.remove();if(!catQ)return;
+ $("cgrid").insertAdjacentHTML("afterbegin",`<div class="cc" id="cust"><div class="cimg" style="font-size:34px">＋</div><b>${esc(catQ)}</b><span>Not listed? Add it yourself</span><div class="row"><button class="outline" data-cu="Owned">+ Vault</button><button class="outline" data-cu="Wishlist">♡ Wish</button></div></div>`);
+}
+function catChips(){$("ccats").innerHTML=CCATS.map(c=>`<button class="chip${c[1]===catCat?" on":""}" data-cc="${c[1]}">${c[0]}</button>`).join("")}
 let catPage=1,catQ="",catBusy=false,catT=null,catInit=false;
 const catCard=p=>{const im=p.image_front_small_url||p.image_front_url;return `<div class="cc"><div class="cimg">${im?`<img src="${esc(im)}" alt="" loading="lazy">`:"🥫"}</div><b>${esc(p.product_name)}</b><span>${esc(p.quantity||"")}</span><div class="row"><button class="outline" data-ca="${esc(p.code)}">+ Vault</button><button class="outline" data-cw="${esc(p.code)}">♡ Wish</button></div></div>`};
 async function loadCat(reset){
  if(catBusy)return;if(reset){catPage=1;$("cgrid").innerHTML=""}
  catBusy=true;$("cmsg").textContent="Loading…";$("cmore").style.display="none";
- try{const {items,raw}=await offFetch(catQ,catPage);items.forEach(p=>CAT.set(p.code,p));
+ try{const {items,raw}=await offFetch(catQ,catPage,12000,catCat);items.forEach(p=>CAT.set(p.code,p));
   $("cgrid").insertAdjacentHTML("beforeend",items.map(catCard).join(""));catPage++;
-  $("cmsg").textContent=$("cgrid").children.length?"":"No cans found. Try another name.";
+  if(reset)customCard();$("cmsg").textContent=items.length||$("cgrid").children.length?"":"Nothing found in the catalogue. You can add it yourself above.";
   $("cmore").style.display=raw>=24?"block":"none";
- }catch(e){$("cmsg").innerHTML='Couldn\'t reach the catalogue. <button class="link" id="cretry" style="width:auto;display:inline;padding:0">Try again</button>'}
+ }catch(e){if(reset)customCard();$("cmsg").innerHTML='Couldn\'t reach the catalogue. <button class="link" id="cretry" style="width:auto;display:inline;padding:0">Try again</button>'}
  catBusy=false;
 }
 async function lookupBarcode(code){
@@ -387,7 +419,7 @@ function startDetect(){
 if("BarcodeDetector" in window)$("cbcCam").style.display="";
 $("cbcGo").onclick=()=>lookupBarcode($("cbc").value);
 $("cbcCam").onclick=()=>{bcMode=true;openCam()};
-function openCatalog(){$("catalog").classList.add("open");if(!catInit){catInit=true;loadCat(true)}}
+function openCatalog(){$("catalog").classList.add("open");if(!catInit){catInit=true;catChips();loadCat(true)}}
 $("catW").onclick=openCatalog;$("catV").onclick=openCatalog;$("cclose").onclick=()=>$("catalog").classList.remove("open");
 $("cq").oninput=e=>{clearTimeout(catT);catT=setTimeout(()=>{catQ=e.target.value.trim();loadCat(true)},600)};
 $("cmore").onclick=()=>loadCat(false);
@@ -396,6 +428,8 @@ $("catalog").addEventListener("click",e=>{
  if(a&&CAT.get(a.dataset.ca))addFromCat(CAT.get(a.dataset.ca),"Owned");
  if(w&&CAT.get(w.dataset.cw))addFromCat(CAT.get(w.dataset.cw),"Wishlist");
  if(e.target.id==="cretry")loadCat(true);
+ const u=e.target.closest("[data-cu]");if(u)addCustom(catQ,u.dataset.cu);
+ const cc=e.target.closest("[data-cc]");if(cc){catCat=cc.dataset.cc;catChips();loadCat(true)}
 });
 const useCat=c=>!!c.catImg&&!S.photos;
 function imgTag(c){
@@ -423,19 +457,126 @@ function retryFailed(){
 window.addEventListener("online",retryFailed);
 async function rescan(id){
  const c=cans.find(x=>x.id===id);if(!c)return;const bk={...c};c.scanning=true;render();toast("Scanning…");
- await scanOne(c,SCAN.get(id)||c.img);await finishScan(c);
+ const src=SCAN.get(id)||c.img;await scanOne(c,src);await cutItem(c,src);await finishScan(c);
  if(!(c.conf>0)){Object.assign(c,{name:bk.name,line:bk.line,edition:bk.edition,rarity:bk.rarity,price:bk.price,conf:bk.conf});c.notes="Auto-scan failed: "+(c.notes||"").replace("Auto-scan failed: ","")}
- else delete c.colors,await ensureColors(c);
+ else if(!c.cut){delete c.colors;await ensureColors(c)}
  if(c.conf>0&&!c.xpDone&&c.status!=="Wishlist"){const r=grant(c);if(r){REV.set(c.id,r);save();render();queueReveal(c);return}}
  save();render();toast(c.conf>0?`${c.name} · ${c.rarity} · ${money(c.price)}`:(c.notes||"Couldn't scan that one").slice(0,140));
 }
-async function addPhoto(f){
- let sh;try{sh=await shrink(f)}catch(e){toast("Couldn't read that image");return}
+const loadImgU=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
+function colorsFromData(d){
+ const m={};let n=0;
+ for(let p=0;p<d.length;p+=4){if(d[p+3]<128)continue;const k=(d[p]>>5)+","+(d[p+1]>>5)+","+(d[p+2]>>5),o=m[k]||(m[k]={n:0,r:0,g:0,b:0});o.n++;o.r+=d[p];o.g+=d[p+1];o.b+=d[p+2];n++}
+ if(!n)return null;
+ const a=Object.values(m).map(o=>({n:o.n,r:o.r/o.n,g:o.g/o.n,b:o.b/o.n}));
+ const sat=o=>{const mx=Math.max(o.r,o.g,o.b),mn=Math.min(o.r,o.g,o.b);return mx?(mx-mn)/mx:0};
+ a.sort((p,q)=>q.n-p.n);const body=a[0];
+ const dist=(p,q)=>Math.abs(p.r-q.r)+Math.abs(p.g-q.g)+Math.abs(p.b-q.b);
+ const cand=a.filter(o=>sat(o)>.35&&dist(o,body)>110).sort((p,q)=>q.n*sat(q)-p.n*sat(p));
+ const acc=cand[0]||(hexLum(toHex(body.r,body.g,body.b))>.5?{r:30,g:30,b:30}:{r:230,g:230,b:230});
+ return{body:toHex(body.r,body.g,body.b),accent:toHex(acc.r,acc.g,acc.b)};
+}
+async function cutout(src,box){
+ const b=box&&{y0:+box.ymin,x0:+box.xmin,y1:+box.ymax,x1:+box.xmax};
+ if(!b||![b.y0,b.x0,b.y1,b.x1].every(Number.isFinite))return null;
+ const img=await loadImgU(src),W=img.width,H=img.height;
+ let x0=b.x0/1000*W,x1=b.x1/1000*W,y0=b.y0/1000*H,y1=b.y1/1000*H;
+ if(x1-x0<W*.08||y1-y0<H*.08)return null;
+ const px=(x1-x0)*.04,py=(y1-y0)*.03;
+ x0=Math.max(0,x0-px);x1=Math.min(W,x1+px);y0=Math.max(0,y0-py);y1=Math.min(H,y1+py);
+ const cw=x1-x0,ch=y1-y0,sc=Math.min(1,360/Math.max(cw,ch)),w=Math.max(8,Math.round(cw*sc)),h=Math.max(8,Math.round(ch*sc));
+ const cv=document.createElement("canvas");cv.width=w;cv.height=h;const x=cv.getContext("2d",{willReadFrequently:true});
+ x.drawImage(img,x0,y0,cw,ch,0,0,w,h);
+ const id=x.getImageData(0,0,w,h),d=id.data,bg=new Uint8Array(w*h);
+ const onEdge=(i,j)=>i<3||j<3||i>=w-3||j>=h-3;
+ let rm=0,gm=0,bm=0,bn=0;
+ for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(onEdge(i,j)){const p=(j*w+i)*4;rm+=d[p];gm+=d[p+1];bm+=d[p+2];bn++}
+ rm/=bn;gm/=bn;bm/=bn;
+ let dev=0;for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(onEdge(i,j)){const p=(j*w+i)*4;dev+=Math.abs(d[p]-rm)+Math.abs(d[p+1]-gm)+Math.abs(d[p+2]-bm)}
+ dev/=bn;
+ if(dev<70){
+  const st=[],sim=p=>Math.abs(d[p]-rm)+Math.abs(d[p+1]-gm)+Math.abs(d[p+2]-bm)<90;
+  const push=(i,j)=>{const k=j*w+i;if(!bg[k]&&sim(k*4)){bg[k]=1;st.push(k)}};
+  for(let i=0;i<w;i++){push(i,0);push(i,h-1)}for(let j=0;j<h;j++){push(0,j);push(w-1,j)}
+  while(st.length){const k=st.pop(),i=k%w,j=(k-i)/w;if(i>0)push(i-1,j);if(i<w-1)push(i+1,j);if(j>0)push(i,j-1);if(j<h-1)push(i,j+1)}
+  let rem=0;for(let k=0;k<bg.length;k++)rem+=bg[k];
+  if(rem>w*h*.55)bg.fill(0);
+ }
+ const r=Math.min(w,h)*.09;
+ for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i;let out=bg[k]===1;
+  const cx=i<r?r-i:i>w-1-r?i-(w-1-r):0,cy=j<r?r-j:j>h-1-r?j-(h-1-r):0;if(cx*cx+cy*cy>r*r)out=true;
+  if(out)d[k*4+3]=0}
+ const a2=new Uint8Array(w*h);for(let k=0;k<a2.length;k++)a2[k]=d[k*4+3];
+ for(let j=1;j<h-1;j++)for(let i=1;i<w-1;i++){const k=j*w+i;if(a2[k]&&(!a2[k-1]||!a2[k+1]||!a2[k-w]||!a2[k+w]))d[k*4+3]=140}
+ const colors=colorsFromData(d);x.putImageData(id,0,0);
+ let url=cv.toDataURL("image/webp",.82);
+ if(!url.startsWith("data:image/webp")){const c2=document.createElement("canvas");c2.width=w;c2.height=h;const x2=c2.getContext("2d");x2.fillStyle="#e9ece7";x2.fillRect(0,0,w,h);x2.drawImage(cv,0,0);url=c2.toDataURL("image/jpeg",.8)}
+ return{url,colors};
+}
+async function cutItem(item,src){
+ const box=item._box;delete item._box;
+ if(!(item.conf>0)||!box)return;
+ try{const co=await cutout(src,box);if(co){item.img=co.url;if(co.colors)item.colors=co.colors;item.cut=1}}catch(e){}
+}
+let pend=0,camMode=S.camMode==="auto"?"auto":"manual",autoT=null,torchOn=false,autoSt={prev:null,steady:0,state:"idle",last:0,quiet:0,rearm:false};
+function setHint(){
+ if(bcMode){$("hint").textContent="Point at the barcode on the can";return}
+ const c=$("cam");c.classList.toggle("sc",pend>0||(camMode==="auto"&&autoSt.state==="idle"&&autoSt.steady>=3));
+ $("hint").textContent=pend>0?"Identifying…":camMode==="auto"?(autoSt.state==="wait"?"Got it. Show the next drink":autoSt.steady>=3?"Hold still…":"Hold the drink in the frame. It scans by itself"):"Fit the whole can in the frame, then tap the button";
+}
+function updScan(){setHint()}
+function syncMode(){
+ document.querySelectorAll("#cmode [data-m]").forEach(b=>b.classList.toggle("on",b.dataset.m===camMode));
+ autoSt={prev:null,steady:0,state:"idle",last:0,quiet:0,rearm:false};$(".frame")&&0;document.querySelector(".frame").style.setProperty("--p",0);setHint();
+}
+const smC=document.createElement("canvas");smC.width=48;smC.height=64;const smX=smC.getContext("2d",{willReadFrequently:true});
+function autoTick(){
+ const v=$("vid");if(!v.videoWidth||camMode!=="auto"||bcMode)return;
+ smX.drawImage(v,0,0,48,64);const d=smX.getImageData(0,0,48,64).data,g=new Float32Array(48*64);
+ for(let i=0;i<g.length;i++)g[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
+ let mo=99;if(autoSt.prev){mo=0;for(let i=0;i<g.length;i++)mo+=Math.abs(g[i]-autoSt.prev[i]);mo/=g.length}
+ autoSt.prev=g;
+ let ed=0,n=0;for(let y=12;y<45;y++)for(let x=6;x<42;x++){const gx=Math.abs(g[y*48+x+1]-g[y*48+x-1]),gy=Math.abs(g[(y+1)*48+x]-g[(y-1)*48+x]);if(gx+gy>28)ed++;n++}
+ const present=ed/n>0.10,now=Date.now(),fr=document.querySelector(".frame");
+ if(autoSt.state==="idle"){
+  if(present&&mo<4&&pend===0)autoSt.steady++;else autoSt.steady=Math.max(0,autoSt.steady-2);
+  fr.style.setProperty("--p",Math.min(1,autoSt.steady/8));
+  if(autoSt.steady>=8){autoSt.steady=0;autoSt.state="wait";autoSt.last=now;autoSt.quiet=0;autoSt.rearm=false;fr.style.setProperty("--p",0);autoShot()}
+ }else{
+  if(autoSt.rearm&&pend===0&&now-autoSt.last>5000){autoSt.state="idle";autoSt.steady=0}
+  else if(pend===0&&now-autoSt.last>2500&&(mo>9||!present)){autoSt.quiet++;if(autoSt.quiet>=3){autoSt.state="idle";autoSt.steady=0}}
+  else if(mo<=9&&present)autoSt.quiet=0;
+ }
+ setHint();
+}
+function autoShot(){
+ const v=$("vid"),c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;c.getContext("2d").drawImage(v,0,0);
+ const f=$("flash");f.classList.remove("go");void f.offsetWidth;f.classList.add("go");
+ c.toBlob(async b=>{const it=await addPhoto(b,{auto:true});if(it){camScans++;$("camCount").textContent=camScans+" scanned"}else autoSt.rearm=true;setHint()},"image/jpeg",.9);
+}
+async function addPhoto(f,opts){
+ opts=opts||{};
+ let sh;try{sh=await shrink(f)}catch(e){toast("Couldn't read that image");return null}
  const colors=await extractColors(sh.thumb);
  const item={colors,id:Date.now()+""+Math.random().toString(36).slice(2,6),name:"Scanning…",line:"",edition:"",rarity:"Common",price:0,status:"Owned",qty:1,fav:false,date:"",notes:"",img:sh.thumb,added:Date.now(),scanning:true};
  cans.push(item);render();
  SCAN.set(item.id,sh.scan);
- enqueue(async()=>{await scanOne(item,sh.scan);await finishScan(item);if(item.conf>0){const r=grant(item);if(r)REV.set(item.id,r)}save();render();if(item.conf>0)qBump("scan");showResult(item)});
+ const camOpen=$("cam").classList.contains("open");
+ if(camOpen){pend++;setHint()}
+ return new Promise(res=>enqueue(async()=>{
+  let out=null;
+  try{
+   await scanOne(item,sh.scan);
+   if(opts.auto&&!(item.conf>=35&&!/^unknown/i.test(item.name))){cans=cans.filter(c=>c!==item);SCAN.delete(item.id);save();render()}
+   else{
+    await cutItem(item,sh.scan);await finishScan(item);
+    if(item.conf>0){const r=grant(item);if(r)REV.set(item.id,r)}
+    save();render();if(item.conf>0)qBump("scan");showResult(item);out=item;
+   }
+  }catch(e){}
+  if(camOpen){pend=Math.max(0,pend-1)}
+  setHint();res(out);
+ }));
 }
 function showResult(item){
  const r=REV.get(item.id);
@@ -456,16 +597,22 @@ async function openCam(){
  $("cam").classList.toggle("bc",bcMode);$("cam").style.zIndex=bcMode?65:"";$("hint").textContent=bcMode?"Point at the barcode on the can":"Fit the whole can in the frame";
  try{
   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false});
-  $("vid").srcObject=stream;await $("vid").play();if(bcMode)startDetect();
+  $("vid").srcObject=stream;await $("vid").play();if(bcMode)startDetect();else{syncMode();clearInterval(autoT);autoT=setInterval(autoTick,150)}
  }catch(e){const b=bcMode;closeCam(true);if(b)toast("Camera blocked. Type the barcode instead.");else{toast("Camera blocked. Using your phone camera app instead.");$("fileCam").click()}}
 }
-function closeCam(skip){clearInterval(bcTimer);bcMode=false;$("cam").classList.remove("bc");$("cam").style.zIndex="";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("vid").srcObject=null;$("cam").classList.remove("open");if(!skip)runReveal()}
+function closeCam(skip){clearInterval(autoT);pend=0;torchOn=false;$("torch").classList.remove("on");$("cam").classList.remove("sc");clearInterval(bcTimer);bcMode=false;$("cam").classList.remove("bc");$("cam").style.zIndex="";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("vid").srcObject=null;$("cam").classList.remove("open");if(!skip)runReveal()}
 $("shutter").onclick=()=>{
  const v=$("vid");if(!v.videoWidth)return;
  const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;c.getContext("2d").drawImage(v,0,0);
  const f=$("flash");f.classList.remove("go");void f.offsetWidth;f.classList.add("go");
  camScans++;$("camCount").textContent=camScans+" scanned";
  c.toBlob(b=>addPhoto(b),"image/jpeg",.9);
+};
+$("cmode").onclick=e=>{const m=e.target.closest("[data-m]");if(!m)return;camMode=m.dataset.m;S.camMode=camMode;saveS();syncMode()};
+$("torch").onclick=async()=>{
+ const tr=stream&&stream.getVideoTracks()[0],cap=tr&&tr.getCapabilities?tr.getCapabilities():{};
+ if(!cap.torch){toast("Flash isn't supported on this browser. Chrome on Android works best.");return}
+ torchOn=!torchOn;try{await tr.applyConstraints({advanced:[{torch:torchOn}]});$("torch").classList.toggle("on",torchOn)}catch(e){torchOn=false;toast("Couldn't switch the flash on")}
 };
 $("scanBtn").onclick=openCam;$("camClose").onclick=()=>closeCam();
 $("camGal").onclick=()=>$("file").click();$("gal").onclick=()=>$("file").click();
@@ -526,8 +673,8 @@ function extractColors(url){return new Promise(res=>{const i=new Image();i.onerr
  const z=32,cv=document.createElement("canvas");cv.width=cv.height=z;const x=cv.getContext("2d");
  x.drawImage(i,i.width*.25,i.height*.15,i.width*.5,i.height*.7,0,0,z,z);
  const d=x.getImageData(0,0,z,z).data,m={};
- for(let p=0;p<d.length;p+=4){const k=(d[p]>>5)+","+(d[p+1]>>5)+","+(d[p+2]>>5),o=m[k]||(m[k]={n:0,r:0,g:0,b:0});o.n++;o.r+=d[p];o.g+=d[p+1];o.b+=d[p+2]}
- const a=Object.values(m).map(o=>({n:o.n,r:o.r/o.n,g:o.g/o.n,b:o.b/o.n}));
+ for(let p=0;p<d.length;p+=4){if(d[p+3]<128)continue;const k=(d[p]>>5)+","+(d[p+1]>>5)+","+(d[p+2]>>5),o=m[k]||(m[k]={n:0,r:0,g:0,b:0});o.n++;o.r+=d[p];o.g+=d[p+1];o.b+=d[p+2]}
+ const a=Object.values(m).map(o=>({n:o.n,r:o.r/o.n,g:o.g/o.n,b:o.b/o.n}));if(!a.length)return res(null);
  const sat=o=>{const mx=Math.max(o.r,o.g,o.b),mn=Math.min(o.r,o.g,o.b);return mx?(mx-mn)/mx:0};
  a.sort((p,q)=>q.n-p.n);const body=a[0];
  const dist=(p,q)=>Math.abs(p.r-q.r)+Math.abs(p.g-q.g)+Math.abs(p.b-q.b);
