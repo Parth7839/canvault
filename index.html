@@ -151,6 +151,10 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 #catalog{position:fixed;inset:0;background:var(--bg);z-index:55;overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));display:none}
 #catalog.open{display:block}
 .chead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.nudgebox{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:12px;padding:8px 8px 8px 14px;margin-bottom:12px;font-size:14px;color:var(--mute)}
+.nudgebox button{padding:8px 14px;flex:none}
+a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink);padding:12px;border-radius:12px;font-size:15px}
+#cam.bc .shut,#cam.bc #camGal,#cam.bc .tray{display:none}
 .cgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 12px;margin-top:10px}
 .cc b{display:block;font-size:14px;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cc>span{color:var(--mute);font-size:12px;display:block;margin-bottom:6px;min-height:16px}
@@ -169,6 +173,7 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 
 <div class="view on" id="v-vault">
 <div class="rk" id="rankStrip"></div>
+<div id="nudge"></div>
 <div class="tools">
 <input id="q" type="search" placeholder="Search" aria-label="Search cans">
 <select id="sort" aria-label="Sort"><option value="new">Newest</option><option value="price">Price</option><option value="rarity">Rarity</option><option value="name">Name</option></select>
@@ -191,15 +196,21 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 <div class="view" id="v-stats"></div>
 
 <div class="view" id="v-more">
+<div id="acct"></div><div id="lbBox"></div>
 <h3>Appearance</h3>
 <div class="seg" id="seg"><button data-th="auto">Auto</button><button data-th="light">Light</button><button data-th="dark">Dark</button></div>
 <h3>Can display</h3>
 <div class="seg" id="seg2" style="grid-template-columns:1fr 1fr"><button data-ph="0">Can art</button><button data-ph="1">My photo</button></div>
 <p class="note">Catalogue photos are used when a can is found in the catalogue, otherwise a rendered can. Photos: Open Food Facts, CC BY-SA.</p>
+<div id="instSec"><h3>Install</h3>
+<button class="outline" id="instBtn" style="display:none;width:100%">Install Can Vault</button>
+<p class="note">iPhone: tap Share, then Add to Home Screen. Android: open the menu, then Install app.</p></div>
 <h3>Backup</h3>
 <p class="note">Your cans live on this phone. Export a backup file now and then.</p>
 <div class="row"><button class="outline" id="exp">Export</button><button class="outline" id="imp">Import</button></div>
+<button class="outline" id="expCsv" style="width:100%;margin-top:8px">Export spreadsheet (CSV)</button>
 <p class="note" id="lastB"></p>
+<p class="note" id="stor"></p>
 <input type="file" id="impFile" accept="application/json" hidden>
 <h3>How it works</h3>
 <ol class="tips">
@@ -211,10 +222,13 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 </ol>
 <h3>AI scanner</h3>
 <div class="row"><button class="outline" id="testScan">Test scanner</button><button class="outline" id="testCat">Test catalogue</button></div>
+<label for="pass">Scanner passcode (optional)</label><input id="pass" type="password" placeholder="Only if you set one in Vercel" autocomplete="off">
 <p class="note" id="scanTest"></p>
+<h3>Share</h3>
+<button class="outline" id="invite" style="width:100%">Invite friends</button>
 <h3>Data</h3>
 <button class="outline danger" id="wipe" style="width:100%">Delete all data</button>
-<p class="note" style="margin-top:14px">Can Vault v3</p>
+<p class="note" style="margin-top:14px">Can Vault v4</p>
 </div>
 </main>
 
@@ -229,7 +243,7 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 <div id="cam">
 <video id="vid" playsinline muted></video>
 <div class="frame"></div>
-<div class="hint">Fit the whole can in the frame</div>
+<div class="hint" id="hint">Fit the whole can in the frame</div>
 <div class="camtop"><span id="camCount">0 scanned</span><button id="camClose">Done</button></div>
 <div class="tray" id="tray"></div>
 <div class="camctl"><button id="camGal" aria-label="Upload from gallery">🖼️</button><button class="shut" id="shutter" aria-label="Take photo"></button><span style="width:52px"></span></div>
@@ -247,6 +261,7 @@ nav .fab i{background:var(--acc);width:46px;height:46px;border-radius:50%;displa
 </div></div>
 <div id="catalog"><div class="chead"><h1>Catalogue</h1><button class="outline" id="cclose">Done</button></div>
 <input id="cq" type="search" placeholder="Search Monster cans" aria-label="Search the catalogue">
+<div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:8px"><input id="cbc" inputmode="numeric" placeholder="Or type a barcode" aria-label="Barcode"><button class="outline" id="cbcGo">Find</button><button class="outline" id="cbcCam" style="display:none">Scan</button></div>
 <p class="note" id="cmsg"></p><div class="cgrid" id="cgrid"></div>
 <button class="outline" id="cmore" style="width:100%;display:none;margin:14px 0">Load more</button>
 <p class="note">Catalogue data and photos come from Open Food Facts (data ODbL, photos CC BY-SA). It covers cans sold in shops, so rare collectibles may be missing.</p></div>
@@ -257,10 +272,28 @@ const RAR=["Common","Uncommon","Rare","Epic","Legendary"];
 const COL={Common:"var(--common)",Uncommon:"var(--uncommon)",Rare:"var(--rare)",Epic:"var(--epic)",Legendary:"var(--legendary)"};
 const TITLES={vault:"Vault",wish:"Wishlist",stats:"Stats",more:"More"};
 const $=id=>document.getElementById(id);
-let cans=[],filter="All",tab="vault",stream=null,camScans=0;
-try{cans=JSON.parse(localStorage.getItem("canvault")||"[]")}catch(e){cans=[]}
+let cans=[],filter="All",tab="vault",stream=null,camScans=0,bcMode=false,bcTimer=null;
+function cleanCan(c){
+ if(!c||typeof c!=="object")return null;
+ const str=(v,n)=>typeof v==="string"?v.slice(0,n||200):"";
+ const o={id:str(c.id,60).replace(/[^\w-]/g,"")||Date.now()+""+Math.random().toString(36).slice(2,6),
+  name:str(c.name)||"Unnamed can",line:str(c.line),edition:str(c.edition),rarity:RAR.includes(c.rarity)?c.rarity:"Common",
+  price:Math.max(0,+c.price||0),status:c.status==="Wishlist"?"Wishlist":"Owned",qty:Math.max(1,parseInt(c.qty)||1),fav:!!c.fav,
+  date:/^\d{4}-\d{2}-\d{2}$/.test(c.date||"")?c.date:"",notes:str(c.notes,500),added:+c.added||Date.now()};
+ if(typeof c.img==="string"&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(c.img))o.img=c.img;
+ if(typeof c.catImg==="string"&&/^https:\/\/([\w-]+\.)*openfoodfacts\.org\//.test(c.catImg))o.catImg=c.catImg.slice(0,500);
+ if(/^\d{6,14}$/.test(String(c.catCode||"")))o.catCode=String(c.catCode);
+ if(c.catName)o.catName=str(c.catName);
+ if(c.colors&&/^#[0-9a-f]{6}$/i.test(c.colors.body)&&/^#[0-9a-f]{6}$/i.test(c.colors.accent))o.colors={body:c.colors.body,accent:c.colors.accent};
+ if(typeof c.conf==="number")o.conf=Math.max(0,Math.min(100,c.conf));
+ if(c.xpDone)o.xpDone=true;
+ if(+c.fails)o.fails=+c.fails;
+ if(c.scanning){o.fails=o.fails||0;if(c.img&&!c.catCode){o.conf=0;o.notes="Auto-scan failed: interrupted. Tap Re-scan.";if(o.name==="Scanning…")o.name="Unknown can"}else{if(o.name==="Scanning…")o.name="Unnamed can";o.notes=o.notes||"Set rarity and price yourself."}}
+ return o;
+}
+try{cans=JSON.parse(localStorage.getItem("canvault")||"[]");if(!Array.isArray(cans))cans=[];cans=cans.map(cleanCan).filter(Boolean)}catch(e){cans=[]}
 let S={};try{S=JSON.parse(localStorage.getItem("cv_settings")||"{}")}catch(e){S={}}
-function save(){try{localStorage.setItem("canvault",JSON.stringify(cans));return true}catch(e){toast("Storage is full. Export a backup and delete some cans.");return false}}
+function save(){try{localStorage.setItem("canvault",JSON.stringify(cans));try{localStorage.setItem("cv_dirty","1")}catch(e){}try{recordValue()}catch(e){}try{window.cloudSchedule&&window.cloudSchedule()}catch(e){}return true}catch(e){toast("Storage is full. Export a backup and delete some cans.");return false}}
 function saveS(){try{localStorage.setItem("cv_settings",JSON.stringify(S))}catch(e){}}
 function applyTheme(){const t=S.theme||"auto";if(t==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.dataset.theme=t}
 const money=n=>"₹"+(+n||0).toLocaleString("en-IN",{maximumFractionDigits:2});
@@ -271,24 +304,24 @@ function toast(t,act,fn){const e=$("toast");e.innerHTML="";const s=document.crea
  e.style.display="flex";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",act?6000:3500)}
 
 function drawTo(img,max,q){const s=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return c.toDataURL("image/jpeg",q)}
-function shrink(file){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const o={scan:drawTo(img,1280,.85),thumb:drawTo(img,480,.7)};URL.revokeObjectURL(u);res(o)};img.onerror=rej;img.src=u})}
+function shrink(file){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const o={scan:drawTo(img,1280,.85),thumb:drawTo(img,360,.65)};URL.revokeObjectURL(u);res(o)};img.onerror=rej;img.src=u})}
 
 const SCAN=new Map();const queue=[];let running=0;
 function enqueue(fn){queue.push(fn);pump()}
 function pump(){while(running<2&&queue.length){running++;queue.shift()().catch(()=>{}).finally(()=>{running--;pump()})}}
 async function callScan(p){
- const r=await fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(typeof p==="string"?{image:p}:p)});
+ const r=await fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json",...(S.pass?{"x-passcode":S.pass}:{})},body:JSON.stringify(typeof p==="string"?{image:p}:p)});
  const t=await r.text();let j;
  try{j=JSON.parse(t)}catch(e){throw new Error("Scanner not found (HTTP "+r.status+"). Check that api/scan.js is in your GitHub repo.")}
  if(!r.ok)throw new Error(j.error||"Scan failed");return j;
 }
 async function scanOne(item,image){
  try{
-  let j;for(let t=0;t<3;t++){try{j=await callScan(image);break}catch(e){if(t===2||/not found|not set|not valid/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,3000*(t+1)))}}
+  let j;for(let t=0;t<3;t++){try{j=await callScan(image);break}catch(e){if(t===2||/not found|not set|not valid|passcode/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,3000*(t+1)))}}
   item.name=j.name||"Unknown can";item.line=j.line||"";item.edition=j.edition||"";
   item.rarity=RAR.includes(j.rarity)?j.rarity:"Common";item.price=Math.max(0,+j.price||0);
   item.notes=j.notes||"";item.conf=Math.round(+j.confidence||0);
- }catch(e){item.name="Unknown can";item.notes="Auto-scan failed: "+String(e.message||e).slice(0,160);item.conf=0}
+ }catch(e){item.name="Unknown can";item.fails=(item.fails||0)+1;item.notes="Auto-scan failed: "+((e instanceof TypeError||/Failed to fetch|NetworkError|Load failed/i.test(e.message))?"No internet connection":String(e.message||e).slice(0,160));item.conf=0}
  item.scanning=false;
 }
 const CAT=new Map();
@@ -311,17 +344,17 @@ async function matchCat(item){
  }catch(e){}
 }
 async function estimateText(item,text){
- try{let j;for(let t=0;t<3;t++){try{j=await callScan({text});break}catch(e){if(t===2||/not found|not set|not valid/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,3000*(t+1)))}}
+ try{let j;for(let t=0;t<3;t++){try{j=await callScan({text});break}catch(e){if(t===2||/not found|not set|not valid|passcode/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,3000*(t+1)))}}
   item.rarity=RAR.includes(j.rarity)?j.rarity:"Common";item.price=Math.max(0,+j.price||0);item.notes=j.notes||"";item.line=item.line||j.line||"";item.conf=Math.round(+j.confidence||0);
  }catch(e){item.notes="Couldn't estimate rarity and price. Set them yourself."}
  item.scanning=false;
 }
 function addFromCat(p,status){
  if(cans.some(c=>c.catCode===p.code&&c.status===status)){toast("Already in your "+(status==="Wishlist"?"wishlist":"vault"));return}
- const nm=/monster/i.test(p.product_name)?p.product_name:"Monster "+p.product_name;
+ const br=String(p.brands||"").split(",")[0].trim(),nm=/monster/i.test(p.product_name)?p.product_name:(/monster/i.test(br)||!br||new RegExp(br.replace(/[^\w ]/g,""),"i").test(p.product_name))?(/monster/i.test(br)?"Monster ":"")+p.product_name:br+" "+p.product_name;
  const lm=nm.match(/(Ultra|Juice|Rehab|Java|Reserve|Hydro|Zero|Original|Mango Loco|Pipeline|Khaotic|Assault|Lo-Carb|Punch)/i);
  const item={id:Date.now()+""+Math.random().toString(36).slice(2,6),name:nm,line:lm?lm[1][0].toUpperCase()+lm[1].slice(1):"",edition:p.quantity||"",rarity:"Common",price:0,status,qty:1,fav:false,date:"",notes:"",catImg:p.image_front_url||p.image_front_small_url||"",catCode:p.code,added:Date.now(),scanning:true,xpDone:true};
- cans.push(item);save();render();toast(status==="Wishlist"?"Added to wishlist":"Added to vault");
+ cans.push(item);save();render();toast(status==="Wishlist"?"Added to wishlist":"Added to vault");if(status==="Wishlist")qBump("wish");
  enqueue(async()=>{await estimateText(item,nm+" "+(p.quantity||"")+" (barcode "+p.code+")");save();render()});
 }
 let catPage=1,catQ="",catBusy=false,catT=null,catInit=false;
@@ -336,6 +369,24 @@ async function loadCat(reset){
  }catch(e){$("cmsg").innerHTML='Couldn\'t reach the catalogue. <button class="link" id="cretry" style="width:auto;display:inline;padding:0">Try again</button>'}
  catBusy=false;
 }
+async function lookupBarcode(code){
+ code=String(code).replace(/\D/g,"");if(code.length<8){toast("Enter the full barcode number");return}
+ $("cmsg").textContent="Looking up "+code+"…";
+ try{const ac=new AbortController(),t=setTimeout(()=>ac.abort(),9000);
+  const r=await fetch("https://world.openfoodfacts.org/api/v2/product/"+code+".json?fields=code,product_name,brands,quantity,image_front_url,image_front_small_url",{signal:ac.signal});clearTimeout(t);
+  const j=await r.json();
+  if(j.status!==1||!j.product||!j.product.product_name){$("cmsg").textContent="That barcode isn't in the catalogue yet.";return}
+  const p=j.product;p.code=p.code||code;CAT.set(p.code,p);$("cgrid").insertAdjacentHTML("afterbegin",catCard(p));$("cmsg").textContent="Found it. Add it below.";
+ }catch(e){$("cmsg").textContent="Couldn't look that up. Check your connection."}
+}
+function startDetect(){
+ if(!("BarcodeDetector" in window))return;
+ const det=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e"]});
+ clearInterval(bcTimer);bcTimer=setInterval(async()=>{try{const r=await det.detect($("vid"));if(r.length){const code=r[0].rawValue;closeCam(true);navigator.vibrate&&navigator.vibrate(40);$("cbc").value=code;lookupBarcode(code)}}catch(e){}},450);
+}
+if("BarcodeDetector" in window)$("cbcCam").style.display="";
+$("cbcGo").onclick=()=>lookupBarcode($("cbc").value);
+$("cbcCam").onclick=()=>{bcMode=true;openCam()};
 function openCatalog(){$("catalog").classList.add("open");if(!catInit){catInit=true;loadCat(true)}}
 $("catW").onclick=openCatalog;$("catV").onclick=openCatalog;$("cclose").onclick=()=>$("catalog").classList.remove("open");
 $("cq").oninput=e=>{clearTimeout(catT);catT=setTimeout(()=>{catQ=e.target.value.trim();loadCat(true)},600)};
@@ -356,9 +407,23 @@ function stageHTML(c,url,sc){
  if(useCat(c)){const h=Math.round(210*sc);return `<div class="cw" style="height:${h+10}px"><img class="flat" src="${esc(c.catImg)}" alt="" style="height:${h}px" data-f="${esc(url)}" onerror="this.onerror=null;this.src=this.dataset.f"></div>`}
  return can3d(url,sc);
 }
+function findWish(item){
+ const t=x=>String(x).toLowerCase().replace(/monster|energy|[^a-z0-9 ]/g," ").split(/\s+/).filter(Boolean).join(" "),n=t(item.name);
+ return cans.find(c=>c!==item&&c.status==="Wishlist"&&((item.catCode&&c.catCode===item.catCode)||(n&&t(c.name)===n)));
+}
+async function finishScan(item){
+ if(!(item.conf>0))return;
+ await matchCat(item);
+ const w=findWish(item);if(w){cans=cans.filter(x=>x!==w);S.wf=(S.wf||0)+1;item.wishHit=true}
+}
+function retryFailed(){
+ if(!navigator.onLine)return;
+ cans.filter(c=>c.img&&!c.scanning&&c.conf===0&&/Auto-scan failed/.test(c.notes||"")&&(c.fails||0)<2).slice(0,4).forEach(c=>enqueue(()=>rescan(c.id)));
+}
+window.addEventListener("online",retryFailed);
 async function rescan(id){
  const c=cans.find(x=>x.id===id);if(!c)return;const bk={...c};c.scanning=true;render();toast("Scanning…");
- await scanOne(c,SCAN.get(id)||c.img);if(c.conf>0)await matchCat(c);
+ await scanOne(c,SCAN.get(id)||c.img);await finishScan(c);
  if(!(c.conf>0)){Object.assign(c,{name:bk.name,line:bk.line,edition:bk.edition,rarity:bk.rarity,price:bk.price,conf:bk.conf});c.notes="Auto-scan failed: "+(c.notes||"").replace("Auto-scan failed: ","")}
  else delete c.colors,await ensureColors(c);
  if(c.conf>0&&!c.xpDone&&c.status!=="Wishlist"){const r=grant(c);if(r){REV.set(c.id,r);save();render();queueReveal(c);return}}
@@ -370,7 +435,7 @@ async function addPhoto(f){
  const item={colors,id:Date.now()+""+Math.random().toString(36).slice(2,6),name:"Scanning…",line:"",edition:"",rarity:"Common",price:0,status:"Owned",qty:1,fav:false,date:"",notes:"",img:sh.thumb,added:Date.now(),scanning:true};
  cans.push(item);render();
  SCAN.set(item.id,sh.scan);
- enqueue(async()=>{await scanOne(item,sh.scan);if(item.conf>0)await matchCat(item);if(item.conf>0){const r=grant(item);if(r)REV.set(item.id,r)}save();render();showResult(item)});
+ enqueue(async()=>{await scanOne(item,sh.scan);await finishScan(item);if(item.conf>0){const r=grant(item);if(r)REV.set(item.id,r)}save();render();if(item.conf>0)qBump("scan");showResult(item)});
 }
 function showResult(item){
  const r=REV.get(item.id);
@@ -387,13 +452,14 @@ function showResult(item){
 }
 async function openCam(){
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$("fileCam").click();return}
- camScans=0;$("camCount").textContent="0 scanned";$("tray").innerHTML="";$("cam").classList.add("open");
+ camScans=0;$("camCount").textContent=bcMode?"Barcode":"0 scanned";$("tray").innerHTML="";$("cam").classList.add("open");
+ $("cam").classList.toggle("bc",bcMode);$("cam").style.zIndex=bcMode?65:"";$("hint").textContent=bcMode?"Point at the barcode on the can":"Fit the whole can in the frame";
  try{
   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false});
-  $("vid").srcObject=stream;await $("vid").play();
- }catch(e){closeCam();toast("Camera blocked. Using your phone camera app instead.");$("fileCam").click()}
+  $("vid").srcObject=stream;await $("vid").play();if(bcMode)startDetect();
+ }catch(e){const b=bcMode;closeCam(true);if(b)toast("Camera blocked. Type the barcode instead.");else{toast("Camera blocked. Using your phone camera app instead.");$("fileCam").click()}}
 }
-function closeCam(skip){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("vid").srcObject=null;$("cam").classList.remove("open");if(!skip)runReveal()}
+function closeCam(skip){clearInterval(bcTimer);bcMode=false;$("cam").classList.remove("bc");$("cam").style.zIndex="";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("vid").srcObject=null;$("cam").classList.remove("open");if(!skip)runReveal()}
 $("shutter").onclick=()=>{
  const v=$("vid");if(!v.videoWidth)return;
  const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;c.getContext("2d").drawImage(v,0,0);
@@ -437,10 +503,13 @@ function grant(item){
  if(item.xpDone||item.status==="Wishlist"||item.scanning)return null;
  item.xpDone=true;
  const before=S.xp||0,rb=rankOf(before),nm=item.name.toLowerCase();
- const dup=cans.some(c=>c!==item&&c.xpDone&&c.status!=="Wishlist"&&c.name.toLowerCase()===nm);
+ S.xpNames=S.xpNames||[];const manual=!item.img&&!item.catCode;
+ const dup=S.xpNames.includes(nm)||cans.some(c=>c!==item&&c.xpDone&&c.status!=="Wishlist"&&c.name.toLowerCase()===nm);
+ if(!dup&&!manual){S.xpNames.push(nm);if(S.xpNames.length>2000)S.xpNames.shift()}
  const newLine=!!item.line&&!cans.some(c=>c!==item&&c.xpDone&&(c.line||"").toLowerCase()===item.line.toLowerCase());
- const parts=[];let g=dup?5:(XPB[item.rarity]||10);parts.push([dup?"Duplicate":"New can",g]);
- if(newLine){g+=10;parts.push(["New line",10])}
+ const parts=[];let g=manual?5:dup?5:(XPB[item.rarity]||10);parts.push([manual?"Added by hand":dup?"Duplicate":"New can",g]);
+ if(newLine&&!manual){g+=10;parts.push(["New line",10])}
+ if(item.wishHit){g+=20;parts.push(["Wishlist found",20]);delete item.wishHit}
  const t=dayStr(new Date());
  if(S.lastDay!==t){S.streak=S.lastDay===dayStr(new Date(Date.now()-864e5))?(S.streak||0)+1:1;S.lastDay=t;
   if(S.streak>1){const b=Math.min(S.streak,5)*2;g+=b;parts.push(["Streak ×"+S.streak,b])}}
@@ -521,6 +590,68 @@ function achHTML(){
  const a=S.ach||{},n=ACH.filter(x=>a[x[0]]).length;
  return `<h3>Achievements · ${n}/${ACH.length}</h3><div class="ach">${ACH.map(x=>`<div class="a${a[x[0]]?" on":""}"><b>${x[1]}</b>${x[2]}</div>`).join("")}</div>`;
 }
+const QUESTS=[["scan","Scan 2 cans",2,20],["wish","Add a can to your wishlist",1,10],["fav","Star a can",1,10]];
+function qState(){const d=dayStr(new Date());if(!S.q||S.q.d!==d)S.q={d,p:{},done:{}};return S.q}
+function qBump(id){const q=qState(),Q=QUESTS.find(x=>x[0]===id);if(!Q||q.done[id])return;q.p[id]=(q.p[id]||0)+1;
+ if(q.p[id]>=Q[2]){q.done[id]=1;S.xp=(S.xp||0)+Q[3];toast("Quest done: "+Q[1]+" · +"+Q[3]+" XP");if(Object.keys(q.done).length===QUESTS.length){S.xp+=15;setTimeout(()=>toast("All daily quests done · +15 XP"),3600)}}
+ saveS();render()}
+const qDoneCount=()=>Object.keys(qState().done).length;
+function questsHTML(){const q=qState();return "<h3>Daily quests</h3>"+QUESTS.map(x=>`<div class="bar" style="grid-template-columns:1fr auto"><span>${q.done[x[0]]?"✓ ":""}${x[1]}</span><small>${q.done[x[0]]?"Done":(q.p[x[0]]||0)+"/"+x[2]+" · +"+x[3]+" XP"}</small></div>`).join("")}
+function recordValue(){const o=ownedList();if(!o.length)return;const v=Math.round(sumV(o)),d=dayStr(new Date());S.hist=S.hist||[];const l=S.hist[S.hist.length-1];
+ if(l&&l.d===d){if(l.v===v)return;l.v=v}else S.hist.push({d,v,t:Date.now()});if(S.hist.length>180)S.hist.shift();saveS()}
+function spark(){
+ const h=S.hist||[];if(h.length<2)return '<p class="note">Your value history will appear after a couple of days of use.</p>';
+ const W=300,H=70,vs=h.map(p=>p.v),mn=Math.min(...vs),mx=Math.max(...vs),rg=Math.max(1,mx-mn);
+ const line=h.map((p,i)=>(i/(h.length-1)*W).toFixed(1)+","+(H-6-(p.v-mn)/rg*(H-14)).toFixed(1)).join(" "),ch=vs[vs.length-1]-vs[0];
+ return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Vault value over time"><polygon points="0,${H} ${line} ${W},${H}" fill="var(--ink)" opacity=".07"/><polyline points="${line}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/></svg><p class="note">${ch>=0?"Up":"Down"} ${money(Math.abs(ch))} since ${new Date(h[0].t||Date.now()).toLocaleDateString()}</p>`;
+}
+function valueHTML(o){
+ const rare=o.slice().sort((a,b)=>RAR.indexOf(b.rarity)-RAR.indexOf(a.rarity)||b.price-a.price)[0];
+ const lv={};o.forEach(c=>{const k=c.line||"Other";lv[k]=(lv[k]||0)+val(c)});const tl=Object.entries(lv).sort((a,b)=>b[1]-a[1])[0];
+ return `<h3>Value over time</h3>${spark()}<div class="tiles" style="margin-top:10px"><div class="tile"><b>${esc(rare.name)}</b><span>Rarest find · ${rare.rarity}</span></div><div class="tile"><b>${esc(tl[0])}</b><span>Top line · ${money(tl[1])}</span></div></div>`;
+}
+function setsHTML(o){
+ const m={};o.forEach(c=>{const k=c.line||"Other";(m[k]=m[k]||new Set()).add(c.name.toLowerCase())});
+ const rows=Object.entries(m).map(([l,st])=>{const n=st.size;return{l,n,g:[5,10,20,30,50,100].find(x=>x>n)||n}}).sort((a,b)=>b.n-a.n).slice(0,6);
+ return "<h3>Set goals</h3>"+rows.map(r=>`<div class="bar"><span>${esc(r.l)}</span><div class="track"><div class="fill" style="width:${Math.min(100,r.n/r.g*100)}%;background:var(--acc)"></div></div><small>${r.n}/${r.g}</small></div>`).join("")+'<p class="note">Collect different flavors in a line to reach each goal.</p>';
+}
+const loadImg=u=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=u});
+function rr(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
+const COLB={Common:"#9aa59c",Uncommon:"#46c27d",Rare:"#5b9bff",Epic:"#b57aff",Legendary:"#ffb12e"};
+async function cardPNG(kind,c){
+ const W=1080,H=1350,cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
+ const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,"#17281b");g.addColorStop(1,"#0a0f0a");x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.textAlign="center";x.fillStyle="#8be000";x.font="800 44px system-ui,sans-serif";x.fillText("CAN VAULT",W/2,100);
+ const o=ownedList(),ri=rankInfo(S.xp||0),foot=`${ri.name} · ${cnt(o)} cans · ${money(sumV(o))}`;
+ if(kind==="can"){
+  const im=await loadImg(artURL(c));if(im){x.save();rr(x,270,170,540,810,36);x.clip();x.drawImage(im,270,170,540,810);x.restore()}
+  x.fillStyle="#fff";x.font="800 64px system-ui,sans-serif";x.fillText(c.name.slice(0,26),W/2,1075);
+  x.fillStyle=COLB[c.rarity]||"#fff";x.font="700 48px system-ui,sans-serif";x.fillText(c.rarity+" · "+money(c.price),W/2,1145);
+ }else{
+  x.fillStyle="#fff";x.font="800 130px system-ui,sans-serif";x.fillText(cnt(o)+" cans",W/2,320);
+  x.fillStyle="#8be000";x.font="800 84px system-ui,sans-serif";x.fillText(money(sumV(o)),W/2,430);
+  x.fillStyle="#aab3ab";x.font="600 44px system-ui,sans-serif";x.fillText("Rank: "+ri.name,W/2,510);
+  const top=o.slice().sort((a,b)=>b.price-a.price).slice(0,3);
+  for(let i=0;i<top.length;i++){const im=await loadImg(artURL(top[i])),px=60+i*340+(3-top.length)*170;if(im){x.save();rr(x,px,600,300,450,24);x.clip();x.drawImage(im,px,600,300,450);x.restore()}}
+  x.fillStyle="#aab3ab";x.font="600 36px system-ui,sans-serif";x.fillText("My most valuable cans",W/2,1110);
+ }
+ x.fillStyle="#aab3ab";x.font="600 38px system-ui,sans-serif";x.fillText(foot,W/2,1270);
+ return cv;
+}
+async function sharePNG(blob,name,text){
+ const f=new File([blob],name,{type:"image/png"});
+ try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:"Can Vault",text});return}}catch(e){if(e&&e.name==="AbortError")return}
+ const u=URL.createObjectURL(blob),l=document.createElement("a");l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);toast("Image saved to your downloads");
+}
+async function makeShare(kind,c){
+ toast("Making your card…");
+ try{const cv=await cardPNG(kind,c);cv.toBlob(b=>b?sharePNG(b,kind==="can"?"can-vault-can.png":"can-vault.png",kind==="can"?c.name+" in my Can Vault":"My Can Vault"):toast("Couldn't make the card"),"image/png")}
+ catch(e){toast("Couldn't make the card")}
+}
+let deferredInstall=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;$("instBtn").style.display="block"});
+$("instBtn").onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();try{await deferredInstall.userChoice}catch(e){}deferredInstall=null;$("instBtn").style.display="none"};
+if(matchMedia("(display-mode: standalone)").matches||navigator.standalone)$("instSec").style.display="none";
 function go(t){tab=t;window.scrollTo(0,0);render()}
 function bars(list,fmt){const m=Math.max(1,...list.map(r=>r.v));return list.map(r=>`<div class="bar"><span>${esc(r.l)}</span><div class="track"><div class="fill" style="width:${r.v/m*100}%;background:${r.c||"var(--ink)"}"></div></div><small>${fmt(r.v)}</small></div>`).join("")}
 function cardHTML(c,dup){
@@ -534,7 +665,7 @@ function render(){
  const count=owned.reduce((a,c)=>a+qty(c),0),total=owned.reduce((a,c)=>a+val(c),0);
  $("sum").textContent=tab==="vault"&&count?`${count} ${count===1?"can":"cans"} · ${money(total)}`:"";
  const ri=rankInfo(S.xp||0),sk=streakNow();
- $("rankStrip").innerHTML=`<div><b>${ri.name}</b><span>${S.xp||0} XP${sk>1?" · "+sk+" day streak":""}</span></div><div class="xpbar" style="margin:0"><i style="width:${ri.pct}%"></i></div>`;
+ $("rankStrip").innerHTML=`<div><b>${ri.name}</b><span>${S.xp||0} XP${sk>1?" · "+sk+" day streak":""} · ${qDoneCount()}/3 quests</span></div><div class="xpbar" style="margin:0"><i style="width:${ri.pct}%"></i></div>`;
  $("viewBtn").textContent=S.view==="list"?"Grid":"List";$("list").classList.toggle("list",S.view==="list");
  // vault
  $("filters").innerHTML=["All",...RAR,"Favorites"].map(f=>`<button class="chip${f===filter?" on":""}" data-f="${f}">${f}</button>`).join("");
@@ -551,18 +682,24 @@ function render(){
  const lines={};owned.forEach(c=>{const k=c.line||"Other";lines[k]=(lines[k]||0)+qty(c)});
  const now=new Date(),months=[];for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({l:d.toLocaleString("en",{month:"short"}),y:d.getFullYear(),m:d.getMonth(),v:0})}
  owned.forEach(c=>{const d=new Date(c.added||0);const m=months.find(x=>x.y===d.getFullYear()&&x.m===d.getMonth());if(m)m.v+=qty(c)});
- $("v-stats").innerHTML=rankCard()+(owned.length?`<div class="tiles"><div class="tile"><b>${count}</b><span>Cans</span></div><div class="tile"><b>${money(total)}</b><span>Total value</span></div><div class="tile"><b>${money(total/Math.max(1,count))}</b><span>Average</span></div><div class="tile"><b>${money(top.price)}</b><span>${esc(top.name)}</span></div></div>
+ $("v-stats").innerHTML=rankCard()+questsHTML()+(owned.length?`<div class="tiles"><div class="tile"><b>${count}</b><span>Cans</span></div><div class="tile"><b>${money(total)}</b><span>Total value</span></div><div class="tile"><b>${money(total/Math.max(1,count))}</b><span>Average</span></div><div class="tile"><b>${money(top.price)}</b><span>${esc(top.name)}</span></div></div>
  <h3>Value by rarity</h3>${bars(RAR.map(r=>({l:`${r} (${owned.filter(c=>c.rarity===r).reduce((a,c)=>a+qty(c),0)})`,v:owned.filter(c=>c.rarity===r).reduce((a,c)=>a+val(c),0),c:COL[r]})),money)}
  <h3>Top lines</h3>${bars(Object.entries(lines).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([l,v])=>({l,v})),n=>n)}
  <h3>Most valuable</h3>${owned.slice().sort((a,b)=>b.price-a.price).slice(0,3).map(c=>`<div class="grid list" style="margin-bottom:6px">${cardHTML(c,false)}</div>`).join("")}
- <h3>Added per month</h3>${bars(months,n=>n)}`:'<div class="empty"><b>No stats yet</b>Scan a few cans and your numbers show up here.</div>')+achHTML();
+ <h3>Added per month</h3>${bars(months,n=>n)}`:'<div class="empty"><b>No stats yet</b>Scan a few cans and your numbers show up here.</div>')+(owned.length?valueHTML(owned)+setsHTML(owned)+'<button class="outline" id="shareV" style="width:100%;margin-top:14px">Share my vault</button>':"")+achHTML();
  // more
  document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.th===(S.theme||"auto")));
  document.querySelectorAll("#seg2 button").forEach(b=>b.classList.toggle("on",(b.dataset.ph==="1")===!!S.photos));
+ let used=0;try{used=(localStorage.getItem("canvault")||"").length}catch(e){}
+ const pct=Math.round(used/5e6*100),oldB=!S.lastBackup||Date.now()-S.lastBackup>14*864e5;
+ $("stor").textContent=`Storage used: ${(used/1e6).toFixed(1)} MB of about 5 MB (${pct}%)`+(pct>=80?". Almost full: export a backup and delete some cans.":"");
+ $("nudge").innerHTML=pct>=80?'<div class="nudgebox"><span>Storage is almost full. Export a backup.</span><button class="outline" id="nudgeB">Export</button></div>':(count>=3&&oldB?'<div class="nudgebox"><span>Back up your vault so you never lose it.</span><button class="outline" id="nudgeB">Export</button></div>':"");
  $("lastB").textContent=S.lastBackup?"Last backup: "+new Date(S.lastBackup).toLocaleDateString():"No backup yet.";
 }
 
 document.addEventListener("click",e=>{
+ if(e.target.closest("#nudgeB")){$("exp").click();return}
+ if(e.target.closest("#shareV")){makeShare("vault");return}
  if(e.target.closest("#rankStrip")){go("stats");return}
  const t=e.target.closest("#tabs [data-t]");if(t){go(t.dataset.t);return}
  const o=e.target.closest("[data-o]");if(o){openSheet(o.dataset.o);return}
@@ -589,18 +726,21 @@ function openSheet(id,st){
  <label for="f_n">Notes</label><textarea id="f_n" rows="2">${esc(c.notes)}</textarea>
  ${c.img&&c.notes&&/Auto-scan failed/.test(c.notes)?'<p class="note" style="color:#d23b3b">The scan failed. Tap Re-scan to try again.</p>':""}
  ${c.img?'<button class="outline" id="f_rescan" style="width:100%;margin-top:12px">Re-scan with AI</button>':""}
+ ${id?`<div class="row" style="margin-top:12px"><a class="btn outline" target="_blank" rel="noopener" href="https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(c.name)}&LH_Sold=1&LH_Complete=1">eBay sold prices</a><a class="btn outline" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(c.name+" can price")}">Google price</a></div><button class="outline" id="f_share" style="width:100%;margin-top:8px">Share this can</button>`:""}
  <button class="primary" id="f_save" style="margin-top:14px">Save</button>
  <div class="row" style="margin-top:8px"><button class="outline" id="f_fav">${fav?"★ Favorite":"☆ Favorite"}</button><button class="outline" id="f_close">Close</button></div>
  ${id?'<button class="link danger" id="f_del">Delete this can</button>':""}`;
  $("sheet").classList.add("open");
  wrapOf(c).then(u=>{const st=$("sheetStage");if(st)st.innerHTML=stageHTML(c,u,.8)});
  $("f_close").onclick=closeSheet;
+ if($("f_share"))$("f_share").onclick=()=>makeShare("can",c);
  if($("f_nocat"))$("f_nocat").onclick=()=>{delete c.catImg;delete c.catCode;delete c.catName;save();closeSheet();render();toast("Catalogue photo removed")};
  if($("f_rescan"))$("f_rescan").onclick=()=>{if(c.conf>0&&!confirm("Replace these details with a fresh AI scan?"))return;closeSheet();rescan(c.id)};
  $("f_fav").onclick=()=>{fav=!fav;$("f_fav").textContent=fav?"★ Favorite":"☆ Favorite"};
  $("f_save").onclick=()=>{
   const v={name:$("f_name").value.trim()||"Unnamed can",line:$("f_line").value.trim(),edition:$("f_ed").value.trim(),rarity:$("f_r").value,price:Math.max(0,parseFloat($("f_p").value)||0),qty:Math.max(1,parseInt($("f_q").value)||1),date:$("f_d").value,status:$("f_s").value,notes:$("f_n").value.trim(),fav};
   let t=c;const wasWish=!!id&&c.status==="Wishlist";
+  if(fav&&!c.fav)qBump("fav");if(v.status==="Wishlist"&&(!id||!wasWish))qBump("wish");
   if(id)Object.assign(c,v);else{t={id:Date.now()+"",added:Date.now(),...v};cans.push(t)}
   if(wasWish&&v.status==="Owned")S.wf=(S.wf||0)+1;
   const r=grant(t);if(r)REV.set(t.id,r);
@@ -613,20 +753,42 @@ function openSheet(id,st){
 function closeSheet(){$("sheet").classList.remove("open")}
 $("sheet").onclick=e=>{if(e.target.id==="sheet")closeSheet()};
 
+$("expCsv").onclick=()=>{
+ const q=v=>{v=String(v==null?"":v);if(/^[=+\-@]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"'};
+ const rows=[["Name","Line","Edition","Rarity","Price (INR)","Quantity","Status","Date","Notes"],...cans.map(c=>[c.name,c.line,c.edition,c.rarity,c.price,qty(c),c.status,c.date,c.notes])];
+ const u=URL.createObjectURL(new Blob(["\ufeff"+rows.map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"}));
+ const l=document.createElement("a");l.href=u;l.download="can-vault.csv";document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);toast("Spreadsheet saved to your downloads")};
+$("pass").value=S.pass||"";$("pass").onchange=()=>{S.pass=$("pass").value.trim();saveS();toast("Passcode saved")};
+$("invite").onclick=async()=>{
+ const url=location.origin,text="Track your energy drink can collection with Can Vault. Scan cans, earn XP and rank up.";
+ if(navigator.share){try{await navigator.share({title:"Can Vault",text,url});return}catch(e){if(e.name==="AbortError")return}}
+ try{await navigator.clipboard.writeText(url);toast("Link copied")}catch(e){toast(url)}};
 $("exp").onclick=()=>{
- const u=URL.createObjectURL(new Blob([JSON.stringify(cans)],{type:"application/json"}));
+ const data={app:"canvault",v:3,cans,settings:{xp:S.xp,streak:S.streak,lastDay:S.lastDay,ach:S.ach,wf:S.wf,theme:S.theme,photos:S.photos,view:S.view,xpNames:S.xpNames}};
+ const u=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:"application/json"}));
  const l=document.createElement("a");l.href=u;l.download="can-vault-backup.json";document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
- S.lastBackup=Date.now();saveS();render();
+ S.lastBackup=Date.now();saveS();render();toast("Backup saved to your downloads");
 };
 $("imp").onclick=()=>$("impFile").click();
 $("impFile").onchange=async e=>{
  const f=e.target.files[0];e.target.value="";if(!f)return;
- try{const a=JSON.parse(await f.text());if(!Array.isArray(a))throw 0;
-  const ids=new Set(cans.map(c=>c.id));let n=0;a.forEach(c=>{if(c&&c.id&&!ids.has(c.id)){cans.push(c);n++}});save();render();toast(n+" cans imported")
+ try{
+  const a=JSON.parse(await f.text()),arr=Array.isArray(a)?a:a.cans;if(!Array.isArray(arr))throw 0;
+  const ids=new Set(cans.map(c=>c.id));let n=0;
+  arr.map(cleanCan).filter(Boolean).forEach(c=>{if(!ids.has(c.id)){cans.push(c);ids.add(c.id);n++}});
+  const st=!Array.isArray(a)&&a.settings;
+  if(st&&typeof st==="object"){
+   S.xp=Math.max(S.xp||0,Math.round(+st.xp)||0);S.wf=Math.max(S.wf||0,Math.round(+st.wf)||0);
+   const ach={};ACH.forEach(x=>{if((st.ach&&st.ach[x[0]])||(S.ach&&S.ach[x[0]]))ach[x[0]]=(S.ach&&S.ach[x[0]])||+st.ach[x[0]]||Date.now()});S.ach=ach;
+   S.xpNames=[...new Set([...(S.xpNames||[]),...(Array.isArray(st.xpNames)?st.xpNames.map(String):[])])].slice(-2000);
+   if(!S.lastDay&&typeof st.lastDay==="string"){S.lastDay=st.lastDay;S.streak=Math.round(+st.streak)||0}
+   saveS();
+  }
+  save();render();toast(n+" cans imported");
  }catch(err){toast("That file isn't a Can Vault backup")}
 };
 $("testScan").onclick=async()=>{const n=$("scanTest");n.textContent="Testing…";
- try{const r=await fetch("/api/scan"),t=await r.text();let j;try{j=JSON.parse(t)}catch(e){n.textContent="Scanner not found (HTTP "+r.status+"). Make sure api/scan.js is in your GitHub repo and Vercel has redeployed.";return}
+ try{const r=await fetch("/api/scan",{headers:S.pass?{"x-passcode":S.pass}:{}}),t=await r.text();let j;try{j=JSON.parse(t)}catch(e){n.textContent="Scanner not found (HTTP "+r.status+"). Make sure api/scan.js is in your GitHub repo and Vercel has redeployed.";return}
   n.textContent=r.ok&&j.ok?"Scanner works ✓ (model: "+j.model+")":"Scanner problem: "+(j.error||"unknown error")}catch(e){n.textContent="Couldn't reach the scanner: "+e.message}};
 $("testCat").onclick=async()=>{const n=$("scanTest");n.textContent="Testing catalogue…";
  try{const {items,raw}=await offFetch("ultra",1,9000);n.textContent=items.length?`Catalogue works ✓ (${items.length} cans found)`:`Catalogue reachable, but no Monster cans came back (${raw} results). Try again later.`}
@@ -643,7 +805,11 @@ function welcome(){
 applyTheme();render();
 (async()=>{let ch=0;for(const c of cans){if(!c.colors&&c.img){const k=await extractColors(c.img);if(k){c.colors=k;ch=1}}}if(ch){save();render()}})();
 if(!S.seen&&!cans.length)welcome();
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+setTimeout(retryFailed,2500);
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
+<script src="config.js"></script>
+<script src="cloud.js" defer></script>
 </body>
 </html>
