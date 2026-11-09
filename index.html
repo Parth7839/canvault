@@ -333,7 +333,7 @@ async function scanOne(item,image){
   let j;for(let t=0;t<3;t++){try{j=await callScan(image);break}catch(e){if(t===2||/not found|not set|not valid|passcode/i.test(e.message))throw e;await new Promise(r=>setTimeout(r,3000*(t+1)))}}
   item.name=j.name||"Unknown can";if(j.brand&&j.name&&!String(j.name).toLowerCase().includes(String(j.brand).toLowerCase()))item.name=j.brand+" "+j.name;item.line=j.line||"";item.edition=j.edition||"";item._box=j.box||null;
   item.rarity=RAR.includes(j.rarity)?j.rarity:"Common";item.price=Math.max(0,+j.price||0);
-  item.notes=j.notes||"";item.conf=Math.round(+j.confidence||0);
+  item.notes=j.notes||"";{let cf=+j.confidence||0;if(cf>0&&cf<=1)cf*=100;item.conf=Math.round(cf)}
  }catch(e){item.name="Unknown can";item.fails=(item.fails||0)+1;item.notes="Auto-scan failed: "+((e instanceof TypeError||/Failed to fetch|NetworkError|Load failed/i.test(e.message))?"No internet connection":String(e.message||e).slice(0,160));item.conf=0}
  item.scanning=false;
 }
@@ -518,7 +518,7 @@ async function cutItem(item,src){
  if(!(item.conf>0)||!box)return;
  try{const co=await cutout(src,box);if(co){item.img=co.url;if(co.colors)item.colors=co.colors;item.cut=1}}catch(e){}
 }
-let pend=0,camMode=S.camMode==="auto"?"auto":"manual",autoT=null,torchOn=false,autoSt={prev:null,steady:0,state:"idle",last:0,quiet:0,rearm:false};
+let pend=0,camMode=S.camMode==="auto"?"auto":"manual",autoT=null,torchOn=false,autoSt={prev:null,steady:0,state:"idle",last:0,diff:0,ref:null,fails:0,rearm:false};
 function setHint(){
  if(bcMode){$("hint").textContent="Point at the barcode on the can";return}
  const c=$("cam");c.classList.toggle("sc",pend>0||(camMode==="auto"&&autoSt.state==="idle"&&autoSt.steady>=3));
@@ -527,38 +527,47 @@ function setHint(){
 function updScan(){setHint()}
 function syncMode(){
  document.querySelectorAll("#cmode [data-m]").forEach(b=>b.classList.toggle("on",b.dataset.m===camMode));
- autoSt={prev:null,steady:0,state:"idle",last:0,quiet:0,rearm:false};$(".frame")&&0;document.querySelector(".frame").style.setProperty("--p",0);setHint();
+ autoSt={prev:null,steady:0,state:"idle",last:0,diff:0,ref:null,fails:0,rearm:false};document.querySelector(".frame").style.setProperty("--p",0);setHint();
 }
 const smC=document.createElement("canvas");smC.width=48;smC.height=64;const smX=smC.getContext("2d",{willReadFrequently:true});
 function autoTick(){
  const v=$("vid");if(!v.videoWidth||camMode!=="auto"||bcMode)return;
- smX.drawImage(v,0,0,48,64);const d=smX.getImageData(0,0,48,64).data,g=new Float32Array(48*64);
- for(let i=0;i<g.length;i++)g[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
- let mo=99;if(autoSt.prev){mo=0;for(let i=0;i<g.length;i++)mo+=Math.abs(g[i]-autoSt.prev[i]);mo/=g.length}
- autoSt.prev=g;
+ smX.drawImage(v,0,0,48,64);const d=smX.getImageData(0,0,48,64).data,g=new Float32Array(48*64),cc=new Float32Array(48*64*3);
+ for(let i=0;i<g.length;i++){g[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];cc[i*3]=d[i*4];cc[i*3+1]=d[i*4+1];cc[i*3+2]=d[i*4+2]}
+ const dif=(p,q)=>{let t=0;for(let i=0;i<p.length;i++)t+=Math.abs(p[i]-q[i]);return t/p.length};
+ const mo=autoSt.prev?dif(cc,autoSt.prev):99;autoSt.prev=cc;
  let ed=0,n=0;for(let y=12;y<45;y++)for(let x=6;x<42;x++){const gx=Math.abs(g[y*48+x+1]-g[y*48+x-1]),gy=Math.abs(g[(y+1)*48+x]-g[(y-1)*48+x]);if(gx+gy>28)ed++;n++}
  const present=ed/n>0.10,now=Date.now(),fr=document.querySelector(".frame");
  if(autoSt.state==="idle"){
-  if(present&&mo<4&&pend===0)autoSt.steady++;else autoSt.steady=Math.max(0,autoSt.steady-2);
-  fr.style.setProperty("--p",Math.min(1,autoSt.steady/8));
-  if(autoSt.steady>=8){autoSt.steady=0;autoSt.state="wait";autoSt.last=now;autoSt.quiet=0;autoSt.rearm=false;fr.style.setProperty("--p",0);autoShot()}
+  if(present&&mo<5&&pend===0)autoSt.steady++;else autoSt.steady=Math.max(0,autoSt.steady-1);
+  fr.style.setProperty("--p",Math.min(1,autoSt.steady/7));
+  if(autoSt.steady>=7){autoSt.steady=0;autoSt.state="wait";autoSt.last=now;autoSt.diff=0;autoSt.rearm=false;autoSt.ref=cc;fr.style.setProperty("--p",0);autoShot()}
  }else{
-  if(autoSt.rearm&&pend===0&&now-autoSt.last>5000){autoSt.state="idle";autoSt.steady=0}
-  else if(pend===0&&now-autoSt.last>2500&&(mo>9||!present)){autoSt.quiet++;if(autoSt.quiet>=3){autoSt.state="idle";autoSt.steady=0}}
-  else if(mo<=9&&present)autoSt.quiet=0;
+  /* after a capture, wait until the view really changes (new drink, or the drink was taken away) */
+  if(autoSt.ref&&dif(cc,autoSt.ref)>7)autoSt.diff++;else autoSt.diff=0;
+  const changed=autoSt.diff>=4&&now-autoSt.last>1200,retry=autoSt.rearm&&now-autoSt.last>4000;
+  if(pend===0&&(changed||retry)){autoSt.state="idle";autoSt.steady=0;autoSt.ref=null;autoSt.diff=0}
  }
  setHint();
 }
 function autoShot(){
  const v=$("vid"),c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;c.getContext("2d").drawImage(v,0,0);
  const f=$("flash");f.classList.remove("go");void f.offsetWidth;f.classList.add("go");
- c.toBlob(async b=>{const it=await addPhoto(b,{auto:true});if(it){camScans++;$("camCount").textContent=camScans+" scanned"}else autoSt.rearm=true;setHint()},"image/jpeg",.9);
+ c.toBlob(async b=>{
+  const it=await addPhoto(b,{auto:true});
+  if(it&&it.conf>0){camScans++;autoSt.fails=0;$("camCount").textContent=camScans+" scanned"}
+  else{autoSt.fails=(autoSt.fails||0)+1;autoSt.rearm=autoSt.fails<2}
+  setHint();
+ },"image/jpeg",.9);
 }
+let camAdded=0;
+function trayMsg(t){const tr=$("tray");if(!tr)return;const b=document.createElement("div");b.className="res";b.innerHTML="<div><b>"+esc(t)+"</b></div>";tr.appendChild(b);while(tr.children.length>3)tr.firstChild.remove();setTimeout(()=>b.remove(),4500)}
 async function addPhoto(f,opts){
  opts=opts||{};
  let sh;try{sh=await shrink(f)}catch(e){toast("Couldn't read that image");return null}
- const colors=await extractColors(sh.thumb);
+ let colors=null;try{colors=await extractColors(sh.thumb)}catch(e){}
  const item={colors,id:Date.now()+""+Math.random().toString(36).slice(2,6),name:"Scanning…",line:"",edition:"",rarity:"Common",price:0,status:"Owned",qty:1,fav:false,date:"",notes:"",img:sh.thumb,added:Date.now(),scanning:true};
+ if(filter!=="All")filter="All";const qq=$("q");if(qq&&qq.value)qq.value="";
  cans.push(item);render();
  SCAN.set(item.id,sh.scan);
  const camOpen=$("cam").classList.contains("open");
@@ -567,14 +576,24 @@ async function addPhoto(f,opts){
   let out=null;
   try{
    await scanOne(item,sh.scan);
-   if(opts.auto&&!(item.conf>=35&&!/^unknown/i.test(item.name))){cans=cans.filter(c=>c!==item);SCAN.delete(item.id);save();render()}
+   const failed=/^Auto-scan failed/.test(item.notes||"");
+   const notDrink=!failed&&(item.conf<=0||/^unknown/i.test(item.name||""));
+   if(opts.auto&&notDrink){cans=cans.filter(c=>c!==item);SCAN.delete(item.id);if(camOpen)trayMsg("No drink detected")}
    else{
-    await cutItem(item,sh.scan);await finishScan(item);
-    if(item.conf>0){const r=grant(item);if(r)REV.set(item.id,r)}
-    save();render();if(item.conf>0)qBump("scan");showResult(item);out=item;
+    if(item.conf>0){
+     try{await cutItem(item,sh.scan)}catch(e){}
+     try{await finishScan(item)}catch(e){}
+     try{const r=grant(item);if(r)REV.set(item.id,r)}catch(e){}
+     try{qBump("scan")}catch(e){}
+     if(camOpen)camAdded++;
+    }else if(failed&&camOpen)trayMsg("Scan failed: "+String(item.notes).replace(/^Auto-scan failed: ?/,"").slice(0,70));
+    out=item;
    }
   }catch(e){}
-  if(camOpen){pend=Math.max(0,pend-1)}
+  item.scanning=false;
+  try{save()}catch(e){}try{render()}catch(e){}
+  if(out){try{showResult(out)}catch(e){}}
+  if(camOpen)pend=Math.max(0,pend-1);
   setHint();res(out);
  }));
 }
@@ -600,7 +619,7 @@ async function openCam(){
   $("vid").srcObject=stream;await $("vid").play();if(bcMode)startDetect();else{syncMode();clearInterval(autoT);autoT=setInterval(autoTick,150)}
  }catch(e){const b=bcMode;closeCam(true);if(b)toast("Camera blocked. Type the barcode instead.");else{toast("Camera blocked. Using your phone camera app instead.");$("fileCam").click()}}
 }
-function closeCam(skip){clearInterval(autoT);pend=0;torchOn=false;$("torch").classList.remove("on");$("cam").classList.remove("sc");clearInterval(bcTimer);bcMode=false;$("cam").classList.remove("bc");$("cam").style.zIndex="";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("vid").srcObject=null;$("cam").classList.remove("open");if(!skip)runReveal()}
+function closeCam(skip){if(!skip&&camAdded>0){const n=camAdded;setTimeout(()=>toast(n+(n===1?" drink":" drinks")+" added to your vault"),400)}camAdded=0;clearInterval(autoT);pend=0;torchOn=false;$("torch").classList.remove("on");$("cam").classList.remove("sc");clearInterval(bcTimer);bcMode=false;$("cam").classList.remove("bc");$("cam").style.zIndex="";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("vid").srcObject=null;$("cam").classList.remove("open");if(!skip)runReveal()}
 $("shutter").onclick=()=>{
  const v=$("vid");if(!v.videoWidth)return;
  const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;c.getContext("2d").drawImage(v,0,0);
